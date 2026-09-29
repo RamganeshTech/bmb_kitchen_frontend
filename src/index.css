@@ -1,111 +1,129 @@
-:root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+@import "tailwindcss";
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+/*
+  BMB Kitchen theme — extracted from MD sir's reference HTML ("Tandoor" theme).
+  Rule: NEVER write hex or Tailwind default colors in components.
+  Use only: bg-page, bg-surface, text-heading, text-body, border-border, bg-primary ...
+  To re-theme: change values in this one block (or add a [data-theme] override below).
+*/
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@theme {
+  /* Wipe every Tailwind default color (red-500, gray-700, etc. no longer exist) */
+  --color-*: initial;
 
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+  --color-white: #FFFFFF;
+  --color-black: #000000;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  /* Backgrounds */
+  /* --color-page: #F7F4EF;            HTML --paper */
+  --color-page: #FFFFFC;           /*  HTML --paper */
+  --color-surface: #FFFFFF;         /* HTML --card: cards, sidebar, inputs, modals */
+  --color-surface-muted: #FBFAF7;   /* sidebar info card, table row hover */
+  --color-surface-hover: #F5F1EA;   /* sidebar link hover */
+  --color-surface-subtle: #EFEAE2;  /* grey tag, count pill, ghost-button hover */
+  --color-surface-disabled: #F5F2ED;
+  --color-overlay: rgb(31 27 22 / 0.5);
+
+  /* Text */
+  --color-heading: #1F1B16;         /* HTML --ink */
+  --color-body: #3E382F;            /* sidebar link text */
+  --color-muted: #7A7266;           /* HTML --mut */
+  --color-subtle: #A99F91;          /* nav group labels, placeholders */
+  --color-primary-text: #FFFFFF;    /* text on primary / success buttons */
+  --color-inverse: #1F1B16;         /* active tab / active category pill background */
+  --color-inverse-text: #FFFFFF;
+
+  /* Borders */
+  --color-border: #E7E1D8;          /* HTML --line */
+  --color-border-soft: #F3EFE8;     /* table row dividers */
+  --color-border-strong: #DDD6CB;
+  --color-ring: #D9480F;            /* focus outline */
+
+  /* Brand (HTML "tandoor") */
+  --color-primary: #D9480F;
+  --color-primary-hover: #B93A08;
+  --color-primary-soft: #FDEDE4;
+  --color-primary-border: #F5C9B2;  /* occupied table border */
+
+  /* Status */
+  --color-success: #2B8A3E;         /* HTML --leaf */
+  --color-success-soft: #E6F4EA;
+  --color-success-tint: #F4FBF6;    /* available table gradient end */
+  --color-success-border: #CFE7D6;
+
+  --color-warning: #E8A013;         /* HTML --amber */
+  --color-warning-soft: #FBF3DE;
+  --color-warning-text: #96650B;    /* amber tag text */
+
+  --color-danger: #C92A2A;          /* HTML --chilli */
+  --color-danger-soft: #FDECEC;
+  --color-danger-hover: #F8D7D7;
+
+  --color-info: #1971C2;            /* HTML --blue */
+  --color-info-soft: #E7F1FA;
+  --color-info-border: #BBD7EF;     /* reserved table border */
+
+  --color-purple: #6741D9;          /* HTML --plum */
+  --color-purple-soft: #EFEAFB;
+
+  /* Veg / non-veg / egg markers */
+  --color-veg: #2B8A3E;
+  --color-nonveg: #C92A2A;
+  --color-egg: #A8770A;
+  --color-egg-fill: #E0A106;
+
+  /* Fonts */
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-display: 'Sora', 'Inter', sans-serif;
+
+  /* Shape & shadow */
+  --radius-card: 12px;
+  --shadow-card: 0 1px 3px rgb(31 27 22 / 0.07), 0 4px 14px rgb(31 27 22 / 0.05);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
+/* Optional: alternate theme MD sir might ask for. Set <html data-theme="ocean"> */
 
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
+/* 
+[data-theme="ocean"] {
+  --color-primary: #1971C2;
+  --color-primary-hover: #155FA0;
+  --color-primary-soft: #E7F1FA;
+  --color-primary-border: #BBD7EF;
+  --color-ring: #1971C2;
 }
 
 body {
-  margin: 0;
+  background: var(--color-page);
+  color: var(--color-body);
+  font-family: var(--font-sans);
+  font-size: 14px;
+}
+*/
+
+
+
+
+
+::-webkit-scrollbar {
+  display: none;
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
+/* Force show custom scrollbar ONLY for specific containers */
+.show-scrollbar::-webkit-scrollbar {
+  display: block !important;
+  width: 5px;
 }
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
+.show-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
 }
-p {
-  margin: 0;
+.show-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1; /* soft light gray */
+  border-radius: 10px;
 }
-
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
-}
-
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+.show-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
