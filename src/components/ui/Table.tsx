@@ -60,8 +60,8 @@ export const Th: React.FC<ThProps> = ({ children, className, scope = 'col', ...p
   </th>
 );
 
-export const TBody: React.FC<{ children: ReactNode }> = ({ children }) => (
-  <tbody className="divide-y divide-border">{children}</tbody>
+export const TBody: React.FC<{ children: ReactNode, className?:string }> = ({ children, className }) => (
+  <tbody className={`${className} divide-y divide-border`}>{children}</tbody>
 );
 
 interface TrProps {
@@ -109,7 +109,7 @@ export const Td: React.FC<TdProps> = ({
   colSpan,
   className,
 }) => (
-  <td colSpan={colSpan} className={cn('px-4 sm:px-6 py-4 text-sm text-body', className)}>
+  <td colSpan={colSpan} className={cn('px-4 sm:px-6 py-4 text-sm  text-body', className)}>
     {children}
   </td>
 );

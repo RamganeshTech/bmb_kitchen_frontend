@@ -14,6 +14,19 @@ import OutletMain from './pages/outlet_pages/OutletMain'
 import MenuCategory from './pages/menu_category_pages/MenuCategoryMain'
 import MenuItemMain from './pages/menu_item_pages/MenuItemMain'
 import RestaurantTableMain from './pages/restaurantTable_pages/RestaurantTablemain'
+import InventoryMain from './pages/inventory_pages/InventoryMain'
+import VendorMain from './pages/vendor_pages/VendorMain'
+import WasteAdjustmentMain from './pages/wasteAdjustment_pages/WasteAdjustmentMain'
+import CustomerMain from './pages/customer_pages/CustomerMain'
+import OfferMain from './pages/offer_pages/OfferMain'
+import LoyaltyProgramMain from './pages/loyalty_program_pages/LoyaltyProgramMain'
+import RecipeCostMain from './pages/recipeCost_pages/RecipeCostMain'
+import PurchaseMain from './pages/purchase_pages/PurchaseMain'
+import CentralKitchenMain from './pages/centralKitchen_pages/CentralKitchenMain'
+import SupportTicketMain from './pages/supportTicket_pages/SupportTicketMain'
+import TaxSettingsMain from './pages/Taxsetting_pages/TaxSettingMain'
+import PrinterSettingsMain from './pages/printer_pages/PrinterMain'
+import SubscriptionMain from './pages/subscription_pages/Subscription'
 
 const App = () => {
 
@@ -55,6 +68,19 @@ const App = () => {
               <Route path="outlet" element={<OutletMain />} />
               <Route path="tables" element={<RestaurantTableMain />} />
               <Route path="menu-item" element={<MenuItemMain />} />
+              <Route path="inventory" element={<InventoryMain />} />
+              <Route path="vendor" element={<VendorMain />} />
+              <Route path="customer" element={<CustomerMain />} />
+              <Route path="offer" element={<OfferMain />} />
+              <Route path="loyalty-program" element={<LoyaltyProgramMain />} />
+              <Route path="waste-adjustment" element={<WasteAdjustmentMain />} />
+              <Route path="recipe-cost-management" element={<RecipeCostMain />} />
+              <Route path="purchase" element={<PurchaseMain />} />
+              <Route path="central-kitchen" element={<CentralKitchenMain />} />
+              <Route path="support-ticket" element={<SupportTicketMain />} />
+              <Route path="taxsetting" element={<TaxSettingsMain />} />
+              <Route path="printer" element={<PrinterSettingsMain />} />
+              <Route path="subscription" element={<SubscriptionMain />} />
               <Route path="menu-category" element={<MenuCategory />} >
                 <Route path="menu-item/:menuCategoryId" element={<MenuItemMain />} />
               </Route>

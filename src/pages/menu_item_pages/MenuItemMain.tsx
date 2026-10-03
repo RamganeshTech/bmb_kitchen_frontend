@@ -13,11 +13,13 @@ import useDebounce from '../../hooks/useDebounce';
 import { useAuthData } from '../../hooks/useAuthData';
 // TODO: fix these two paths to match your project
 import {
-    MENU_ITEM_WRITE_ROLES, useCreateMenuItem, useGetActiveMenuItems, useGetInactiveMenuItems, useGetMenuItemById,
-    useHardDeleteMenuItem, useRecoverMenuItem, useSoftDeleteMenuItem, useUpdateMenuItem, type MenuItemQueryParams,
+    MENU_ITEM_WRITE_ROLES, useAddMenuItemImages, useCreateMenuItem, useGetActiveMenuItems, useGetInactiveMenuItems, useGetMenuItemById,
+    useHardDeleteMenuItem, useRecoverMenuItem, useRemoveMenuItemImage, useSoftDeleteMenuItem, useUpdateMenuItem, type MenuItemQueryParams,
 } from '../../api_service/menuItem_api/menuItemApi';
 import { useGetMenuCategoryDropdown } from '../../api_service/menuCategory_api/menuCategoryApi';
 import { useParams } from 'react-router-dom';
+import { ImageGallery, type IFileUpload } from '../../components/shared/ImageGallery';
+import { NO_IMAGE } from '../../constants/constants';
 
 /* -------------------------------------------------------------------------- */
 /*  Types, constants, helpers                                                 */
@@ -37,6 +39,8 @@ interface MenuItemData {
     isActive?: boolean;
     createdAt?: string;
     updatedAt?: string;
+    images?: IFileUpload[];
+
 }
 type DrawerState = { mode: 'create' } | { mode: 'view' | 'edit'; id: string } | null;
 
@@ -156,6 +160,8 @@ const ItemsTable = ({ items, isLoading, errorMessage, onRetry, selectedId, onOpe
                 <TableContainer className="rounded-none border-none shadow-none" ariaLabel={inactive ? 'Inactive menu items' : 'Active menu items'} caption="List of menu items">
                     <THead className="sticky top-0 z-10">
                         <tr>
+                            <Th>S.No</Th>
+                            <Th>Image</Th>
                             <Th>Item</Th>
                             <Th className="hidden md:table-cell">Category</Th>
                             <Th className="text-right">Price</Th>
@@ -176,8 +182,26 @@ const ItemsTable = ({ items, isLoading, errorMessage, onRetry, selectedId, onOpe
                                 </Td>
                             </Tr>
                         ) : (
-                            items.map((item) => (
+                            items.map((item, idx) => (
                                 <Tr key={item._id} onClick={() => onOpen(item._id)} ariaLabel={`View menu item: ${item.name}`} className={item._id === selectedId ? 'bg-primary/5' : ''}>
+                                    <Td className="hidden md:table-cell">{idx + 1}</Td>
+
+                                    <Td className="hidden md:table-cell">
+                                        {item.images?.length ? (
+                                            <img
+                                                src={item.images[0].url}
+                                                alt={item?.name}
+                                                className="h-12 w-12 rounded-lg object-cover border border-border"
+                                            />
+                                        ) : (
+                                            <img
+                                                src={NO_IMAGE}
+                                                alt={item?.name}
+                                                className="h-12 w-12 rounded-lg object-cover border border-border"
+                                            />
+                                        )}
+                                    </Td>
+
                                     <Td>
                                         <div className="flex items-center gap-3">
                                             <FoodDot type={item.foodType} />
@@ -254,9 +278,30 @@ const RowsEditor = ({ title, hint, rows, onChange, valueLabel, error }: { title:
     </div>
 );
 
-interface FormValues { name: string; categoryId: string; basePrice: number; foodType?: FoodType; prepTime?: number; variants: { name: string; priceDifference: number }[]; addOns: { name: string; price: number }[] }
+interface FormValues {
+    name: string; categoryId: string; basePrice: number; foodType?: FoodType; prepTime?: number;
+    images: File[];
+    variants: { name: string; priceDifference: number }[]; addOns: { name: string; price: number }[]
+}
 
-const ItemForm = ({ item, categoryOptions, isPending, onSubmit, onCancel }: { item?: MenuItemData; categoryOptions: Option[]; isPending: boolean; onSubmit: (v: FormValues) => Promise<void>; onCancel: () => void }) => {
+// const ItemForm = ({ item, categoryOptions, isPending, onSubmit, onCancel }: { item?: MenuItemData; categoryOptions: Option[]; isPending: boolean; onSubmit: (v: FormValues) => Promise<void>; onCancel: () => void }) => {
+const ItemForm = ({
+    item,
+    categoryOptions,
+    isPending,
+    onSubmit,
+    onCancel,
+    onAddImages,
+    onRemoveImage,
+}: {
+    item?: MenuItemData;
+    categoryOptions: Option[];
+    isPending: boolean;
+    onSubmit: (v: FormValues) => Promise<void>;
+    onCancel: () => void;
+    onAddImages?: (files: File[]) => Promise<void>;
+    onRemoveImage?: (image: IFileUpload) => Promise<void>;
+}) => {
     const [name, setName] = useState(item?.name ?? '');
     const [categoryId, setCategoryId] = useState(item ? categoryIdOf(item) : '');
     const [basePrice, setBasePrice] = useState(item ? String(item.basePrice) : '');
@@ -266,6 +311,47 @@ const ItemForm = ({ item, categoryOptions, isPending, onSubmit, onCancel }: { it
     const [addOns, setAddOns] = useState<Row[]>((item?.addOns ?? []).map((a) => newRow(a.name, String(a.price))));
     const [errors, setErrors] = useState<Record<string, string>>({});
 
+    const [images, setImages] = useState<File[]>([]);
+    const [newImages, setNewImages] = useState<File[]>([]);
+
+    const existingImageCount = item?.images?.length ?? 0;
+    const remainingImageSlots = Math.max(
+        0,
+        5 - existingImageCount - newImages.length
+    );
+
+    const handleImageSelect = (e: ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files ?? []);
+
+        if (!files.length) return;
+
+        const remainingSlots = 5 - existingImageCount - newImages.length;
+
+        if (remainingSlots <= 0) {
+            toast.error('You can store a maximum of 5 images');
+            e.target.value = '';
+            return;
+        }
+
+        if (files.length > remainingSlots) {
+            toast.error(
+                `You can add only ${remainingSlots} more image${remainingSlots > 1 ? 's' : ''}`
+            );
+
+            setNewImages((prev) => [
+                ...prev,
+                ...files.slice(0, remainingSlots),
+            ]);
+        } else {
+            setNewImages((prev) => [...prev, ...files]);
+        }
+
+        e.target.value = '';
+    };
+
+    const handleRemoveNewImage = (index: number) => {
+        setNewImages((prev) => prev.filter((_, i) => i !== index));
+    };
     const clear = (key: string) => errors[key] && setErrors((p) => ({ ...p, [key]: '' }));
     const validRows = (rows: Row[]) => rows.every((r) => r.name.trim() && r.value.trim() !== '' && Number.isFinite(Number(r.value)));
 
@@ -281,15 +367,31 @@ const ItemForm = ({ item, categoryOptions, isPending, onSubmit, onCancel }: { it
         setErrors(next);
         if (Object.keys(next).length) return;
 
+
+        // if (item && newImages.length > 0) {
+        //     await onAddImages?.(newImages);
+        // }
+
         await onSubmit({
             name: name.trim(),
             categoryId,
             basePrice: Number(basePrice),
             foodType: foodType || undefined,
             prepTime: prepTime ? Number(prepTime) : undefined,
-            variants: variants.map((v) => ({ name: v.name.trim(), priceDifference: Number(v.value) })),
-            addOns: addOns.map((a) => ({ name: a.name.trim(), price: Number(a.value) })),
+            variants: variants.map((v) => ({
+                name: v.name.trim(),
+                priceDifference: Number(v.value),
+            })),
+            addOns: addOns.map((a) => ({
+                name: a.name.trim(),
+                price: Number(a.value),
+            })),
+            images,
         });
+
+        if (item && newImages.length > 0) {
+            await onAddImages?.(newImages);
+        }
     };
 
     const err = (k: string) => (errors[k] ? <p className="mt-1.5 text-xs text-danger">{errors[k]}</p> : null);
@@ -328,6 +430,117 @@ const ItemForm = ({ item, categoryOptions, isPending, onSubmit, onCancel }: { it
                         ))}
                     </div>
                 </div>
+
+                <div>
+                    <Label>Images</Label>
+
+                    {/* Existing images */}
+                    {item?.images && item.images.length > 0 && (
+                        <div className="mt-2">
+                            <p className="mb-2 text-xs font-medium text-muted">
+                                Existing images ({item.images.length}/5)
+                            </p>
+
+                            <ImageGallery
+                                images={item.images}
+                                handleDelete={onRemoveImage}
+                                heightClass="h-24"
+                                widthClass="w-24"
+                            />
+                        </div>
+                    )}
+
+                    {/* Create item - select images */}
+                    {!item && (
+                        <div className="mt-3">
+                            <Input
+                                id="item-images"
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                                    const files = Array.from(e.target.files ?? []);
+
+                                    if (files.length > 5) {
+                                        toast.error('You can select a maximum of 5 images');
+                                        setImages(files.slice(0, 5));
+                                    } else {
+                                        setImages(files);
+                                    }
+
+                                    e.target.value = '';
+                                }}
+                            />
+
+                            {images.length > 0 && (
+                                <p className="mt-1.5 text-xs text-muted">
+                                    {images.length}/5 images selected
+                                </p>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Edit item - add new images */}
+                    {item && remainingImageSlots > 0 && (
+                        <div className="mt-3">
+                            <p className="mb-2 text-xs font-medium text-muted">
+                                Add new images ({remainingImageSlots} remaining)
+                            </p>
+
+                            <Input
+                                id="item-add-images"
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                onChange={handleImageSelect}
+                            />
+                        </div>
+                    )}
+
+                    {/* Maximum reached */}
+                    {item && remainingImageSlots === 0 && (
+                        <p className="mt-2 text-xs text-muted">
+                            Maximum of 5 images reached. Remove an existing image to add another.
+                        </p>
+                    )}
+
+                    {/* Newly selected images */}
+                    {item && newImages.length > 0 && (
+                        <div className="mt-4">
+                            <p className="mb-2 text-xs font-medium text-muted">
+                                New images ({newImages.length})
+                            </p>
+
+                            <div className="flex flex-wrap gap-3">
+                                {newImages.map((file, index) => (
+                                    <div
+                                        key={`${file.name}-${index}`}
+                                        className="relative h-24 w-24 overflow-hidden rounded-lg border border-border"
+                                    >
+                                        <img
+                                            src={URL.createObjectURL(file)}
+                                            alt={file.name}
+                                            className="h-full w-full object-cover"
+                                        />
+
+                                        <button
+                                            type="button"
+                                            onClick={() => handleRemoveNewImage(index)}
+                                            className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-sm text-white"
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <p className="mt-2 text-xs text-muted">
+                                {existingImageCount + newImages.length}/5 images selected
+                            </p>
+                        </div>
+                    )}
+                </div>
+
                 <RowsEditor title="Variants" hint="Sizes or portions, e.g. Half (-40) or Full (0)" valueLabel="± price" rows={variants} onChange={(r) => { setVariants(r); clear('variants'); }} error={errors.variants} />
                 <RowsEditor title="Add-ons" hint="Extras guests can add, e.g. Extra cheese (30)" valueLabel="Price" rows={addOns} onChange={(r) => { setAddOns(r); clear('addOns'); }} error={errors.addOns} />
             </div>
@@ -356,8 +569,20 @@ const ItemDrawer = ({ state, onChange, onShowInactive, canWrite, categoryOptions
     const { mutateAsync: recoverAsync, isPending: isRecovering } = useRecoverMenuItem();
     const { mutateAsync: deleteAsync, isPending: isDeleting } = useHardDeleteMenuItem();
 
+    const { mutateAsync: addImagesAsync, isPending: isAddingImages } = useAddMenuItemImages();
+
+    const { mutateAsync: removeImageAsync, isPending: isRemovingImage } = useRemoveMenuItemImage();
+
     const [confirm, setConfirm] = useState<'deactivate' | 'delete' | null>(null);
-    const busy = isCreating || isUpdating || isDeactivating || isRecovering || isDeleting;
+    // const busy = isCreating || isUpdating || isDeactivating || isRecovering || isDeleting;
+    const busy =
+        isCreating ||
+        isUpdating ||
+        isDeactivating ||
+        isRecovering ||
+        isDeleting ||
+        isAddingImages ||
+        isRemovingImage;
     const close = () => !busy && onChange(null);
 
     const handleCreate = async (values: FormValues) => {
@@ -380,6 +605,38 @@ const ItemDrawer = ({ state, onChange, onShowInactive, canWrite, categoryOptions
             onChange({ mode: 'view', id });
         } catch (err: any) {
             toast.error(err?.message || 'Failed to update menu item');
+        }
+    };
+
+    const handleAddImages = async (files: File[]) => {
+        if (!id || files.length === 0) return;
+
+        try {
+            await addImagesAsync({
+                menuItemId: id,
+                files,
+            });
+
+            toast.success('Images added successfully');
+            refetch();
+        } catch (err: any) {
+            toast.error(err?.message || 'Failed to add images');
+        }
+    };
+
+    const handleRemoveImage = async (image: IFileUpload) => {
+        if (!id || !image.key) return;
+
+        try {
+            await removeImageAsync({
+                menuItemId: id,
+                imageId: (image as any)._id,
+            });
+
+            toast.success('Image removed successfully');
+            refetch();
+        } catch (err: any) {
+            toast.error(err?.message || 'Failed to remove image');
         }
     };
 
@@ -406,11 +663,22 @@ const ItemDrawer = ({ state, onChange, onShowInactive, canWrite, categoryOptions
     } else if (error || !item) {
         body = <Message icon={<AlertCircle className="h-5 w-5" />} title="Could not load menu item" text={error?.message} action={<Button variant="outline" size="sm" leftIcon={<RefreshCw className="h-4 w-4" />} isLoading={isFetching} onClick={() => refetch()}>Try again</Button>} />;
     } else if (state.mode === 'edit') {
-        body = <ItemForm key={item._id} item={item} categoryOptions={categoryOptions} isPending={isUpdating} onSubmit={handleUpdate} onCancel={() => onChange({ mode: 'view', id: item._id })} />;
+        // body = <ItemForm key={item._id} item={item} categoryOptions={categoryOptions} isPending={isUpdating} onSubmit={handleUpdate} onCancel={() => onChange({ mode: 'view', id: item._id })} />;
+        body = (
+            <ItemForm
+                item={item}
+                categoryOptions={categoryOptions}
+                isPending={isUpdating || isAddingImages || isRemovingImage}
+                onSubmit={handleUpdate}
+                onCancel={close}
+                onAddImages={handleAddImages}
+                onRemoveImage={handleRemoveImage}
+            />
+        );
     } else {
         body = (
             <div className="flex-1 overflow-y-auto">
-                <div className="p-4 sm:p-5">
+                <div className="p-4">
                     <div className="flex items-start gap-3">
                         <FoodDot type={item.foodType} className="mt-1.5" />
                         <div className="min-w-0 flex-1">
@@ -429,6 +697,27 @@ const ItemDrawer = ({ state, onChange, onShowInactive, canWrite, categoryOptions
                             <p className="mt-0.5 text-lg font-semibold text-heading">{item.prepTime ? `${item.prepTime} min` : '-'}</p>
                         </div>
                     </div>
+                </div>
+
+
+                <div className="p-4">
+                    <Label>Images</Label>
+
+                    {/* Existing images */}
+                    {item?.images && item.images.length > 0 && (
+                        <div className="mt-2">
+                            <p className="mb-2 text-xs font-medium text-muted">
+                                Existing images ({item.images.length}/5)
+                            </p>
+
+                            <ImageGallery
+                                images={item.images}
+                                handleDelete={handleRemoveImage}
+                                heightClass="h-24"
+                                widthClass="w-24"
+                            />
+                        </div>
+                    )}
                 </div>
 
                 {canWrite && (

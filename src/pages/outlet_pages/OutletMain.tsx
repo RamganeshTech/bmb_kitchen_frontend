@@ -4,7 +4,7 @@ import {
 } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
-    AlertCircle, ArrowLeft, Ban, Check, Loader2,
+    AlertCircle, ArrowLeft, Ban, Check,
     MapPin, Pencil, Phone, Plus, RefreshCw, RotateCcw, Search, Store, Trash2,
 } from 'lucide-react';
 

@@ -3,9 +3,9 @@ import { useAuthData } from '../../hooks/useAuthData';
 import { checkPermission } from '../../utils/utils';
 import type { BaseApiResponse } from '../auth_api/authApi';
 import { Api } from '../../lib/api';
+import type { UserRole } from '../../features/slices/authSlice';
 
 // ── User Role Types & Permission Arrays ───────────────────────────────────────
-export type UserRole = 'owner' | 'admin' | 'cto' | 'staff';
 
 export const MENU_ITEM_READ_ROLES: UserRole[] = [
     'owner',
@@ -39,6 +39,7 @@ export interface CreateMenuItemPayload {
     prepTime?: number;
     variants?: IVariant[];
     addOns?: IAddOn[];
+    images?: File[];
     [key: string]: any;
 }
 
@@ -213,9 +214,55 @@ export const useCreateMenuItem = () => {
                 checkPermission(currentRole, MENU_ITEM_WRITE_ROLES);
                 if (!organizationId) throw new Error('Organization ID is missing');
 
+
+
+                const formData = new FormData();
+
+                formData.append('name', payload.name);
+                formData.append('categoryId', payload.categoryId);
+                formData.append('basePrice', String(payload.basePrice));
+
+                if (payload.foodType) {
+                    formData.append('foodType', payload.foodType);
+                }
+
+                if (payload.prepTime !== undefined) {
+                    formData.append('prepTime', String(payload.prepTime));
+                }
+
+                if (payload.variants) {
+                    formData.append('variants', JSON.stringify(payload.variants));
+                }
+
+                if (payload.addOns) {
+                    formData.append('addOns', JSON.stringify(payload.addOns));
+                }
+
+                payload.images?.forEach((file) => {
+                    formData.append('files', file);
+                });
+
+                console.log('Images:', payload.images);
+                console.log('Image count:', payload.images?.length);
+
+                for (const file of payload.images ?? []) {
+                    console.log('File:', file.name, file.type, file.size);
+                }
+
+                console.log('FormData:');
+
+                for (const [key, value] of formData.entries()) {
+                    console.log(key, value);
+                }
+
                 const { data } = await Api.post<BaseApiResponse<any>>(
                     `${BASE_MENU_ITEM_URL}/${organizationId}`,
-                    payload
+                    formData,
+                    {
+                        headers: {
+                            'Content-Type': 'multipart/form-data',
+                        },
+                    }
                 );
 
                 if (data.ok) return data;
@@ -271,6 +318,95 @@ export const useUpdateMenuItem = () => {
                 // Invalidate all dropdown variants if categoryId wasn't specified in partial payload
                 queryClient.invalidateQueries({ queryKey: ['menu-items', 'dropdown', organizationId] });
             }
+        },
+    });
+};
+
+
+// ── Types ───────────────────────────────────────────────────────────────────
+export interface AddMenuItemImagesPayload {
+    menuItemId: string;
+    files: File[];
+}
+
+export interface RemoveMenuItemImagePayload {
+    menuItemId: string;
+    imageId: string;
+}
+
+// ── Add Menu Item Images ────────────────────────────────────────────────────
+// Route: POST /api/menu-item/v1/:organizationId/:menuItemId/images
+// Allowed: owner, admin, cto
+export const useAddMenuItemImages = () => {
+    const { currentRole, organizationId } = useAuthData();
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ menuItemId, files }: AddMenuItemImagesPayload) => {
+            try {
+                checkPermission(currentRole, MENU_ITEM_WRITE_ROLES);
+                if (!organizationId) throw new Error('Organization ID is missing');
+                if (!menuItemId) throw new Error('Menu item ID is missing');
+                if (!files || files.length === 0) throw new Error('At least one image file is required');
+
+                const formData = new FormData();
+                files.forEach((file) => {
+                    formData.append('files', file);
+                });
+
+                const { data } = await Api.post<BaseApiResponse<any>>(
+                    `${BASE_MENU_ITEM_URL}/${organizationId}/${menuItemId}/images`,
+                    formData,
+                    {
+                        headers: {
+                            'Content-Type': 'multipart/form-data',
+                        },
+                    }
+                );
+
+                if (data.ok) return data;
+                throw new Error(data.message || 'Failed to add menu item images');
+            } catch (error: any) {
+                const errorMessage = error.response?.data?.message || error.message || 'An unexpected error occurred';
+                throw new Error(errorMessage, { cause: error });
+            }
+        },
+        onSuccess: (_data, { menuItemId }) => {
+            queryClient.invalidateQueries({ queryKey: ['menu-items', 'active', organizationId] });
+            queryClient.invalidateQueries({ queryKey: ['menu-items', 'detail', organizationId, menuItemId] });
+        },
+    });
+};
+
+// ── Remove Menu Item Image ──────────────────────────────────────────────────
+// Route: DELETE /api/menu-item/v1/:organizationId/:menuItemId/images/:imageId
+// Allowed: owner, admin, cto
+export const useRemoveMenuItemImage = () => {
+    const { currentRole, organizationId } = useAuthData();
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ menuItemId, imageId }: RemoveMenuItemImagePayload) => {
+            try {
+                checkPermission(currentRole, MENU_ITEM_WRITE_ROLES);
+                if (!organizationId) throw new Error('Organization ID is missing');
+                if (!menuItemId) throw new Error('Menu item ID is missing');
+                if (!imageId) throw new Error('Image ID is missing');
+
+                const { data } = await Api.delete<BaseApiResponse<any>>(
+                    `${BASE_MENU_ITEM_URL}/${organizationId}/${menuItemId}/images/${imageId}`
+                );
+
+                if (data.ok) return data;
+                throw new Error(data.message || 'Failed to remove menu item image');
+            } catch (error: any) {
+                const errorMessage = error.response?.data?.message || error.message || 'An unexpected error occurred';
+                throw new Error(errorMessage, { cause: error });
+            }
+        },
+        onSuccess: (_data, { menuItemId }) => {
+            queryClient.invalidateQueries({ queryKey: ['menu-items', 'active', organizationId] });
+            queryClient.invalidateQueries({ queryKey: ['menu-items', 'detail', organizationId, menuItemId] });
         },
     });
 };

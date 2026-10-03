@@ -788,7 +788,7 @@ export default function LoginPage() {
       );
 
       toast.success('Signed in successfully');
-      navigate('/layout/dashboard');
+      navigate('/layout/organization');
     } catch (err: any) {
       toast.error(err?.message || 'Invalid email or password');
     }

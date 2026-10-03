@@ -11,6 +11,7 @@ export interface SelectOption {
   value: string | number;
 }
 
+
 interface SearchSelectProps {
   options: SelectOption[];
   value?: string | number | null;
@@ -192,7 +193,7 @@ export const SearchSelect: React.FC<SearchSelectProps> = ({
           }}
           onKeyDown={handleKeyDown}
           className={cn(
-            'w-full rounded-lg border bg-surface text-heading placeholder:text-muted',
+            'w-full rounded-lg border bg-surface text-heading font-medium placeholder:text-muted',
             'transition-colors outline-none pl-9',
             'focus:ring-2 focus:ring-offset-0',
             sizeStyles[size],

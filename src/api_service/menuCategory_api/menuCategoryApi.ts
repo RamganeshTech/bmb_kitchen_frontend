@@ -3,9 +3,7 @@ import { useAuthData } from '../../hooks/useAuthData';
 import { checkPermission } from '../../utils/utils';
 import { Api } from '../../lib/api';
 import type { BaseApiResponse } from '../auth_api/authApi';
-
-// ── User Role Types & Permission Arrays ───────────────────────────────────────
-export type UserRole = 'owner' | 'admin' | 'cto' | 'staff';
+import type { UserRole } from '../../features/slices/authSlice';
 
 export const MENU_CATEGORY_ROLES:UserRole[] = [
     'owner',

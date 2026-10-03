@@ -26,9 +26,9 @@ interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'size'>
 }
 
 const sizeStyles: Record<InputSize, string> = {
-  sm: 'h-10 text-sm px-3',   // 40px — still meets comfortable touch target
-  md: 'h-11 text-sm px-3.5', // 44px — WCAG-recommended minimum touch target
-  lg: 'h-12 text-base px-4', // 48px
+  sm: 'h-10 text-sm font-medium px-3',   // 40px — still meets comfortable touch target
+  md: 'h-11 text-sm  font-medium px-3.5', // 44px — WCAG-recommended minimum touch target
+  lg: 'h-12 text-base font-medium px-4', // 48px
 };
 
 const iconSizeBySize: Record<InputSize, number> = {

@@ -28,6 +28,9 @@ const variantStyles: Record<ButtonVariant, string> = {
     'bg-transparent text-body border border-transparent hover:bg-surface-hover focus-visible:ring-primary/20',
   danger:
     'bg-danger text-primary-text border border-transparent hover:bg-danger/90 focus-visible:ring-danger/30',
+  // white:
+  //   'bg-white text-primary-text border border-transparent hover:bg-surface-hover focus-visible:ring-danger/30',
+
 };
 
 const sizeStyles: Record<ButtonSize, string> = {

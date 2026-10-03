@@ -145,7 +145,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
           aria-orientation="vertical"
           onKeyDown={handleMenuKeyDown}
           className={cn(
-            'absolute z-50 mt-1 min-w-[120px] w-32 rounded-lg bg-surface border border-border p-1 shadow-md',
+            'absolute z-50 mt-1 w-40 min-w-[120px] rounded-lg bg-surface border border-border p-1 shadow-md',
             'flex flex-col gap-0.5',
             align === 'right' ? 'right-0' : 'left-0'
           )}
