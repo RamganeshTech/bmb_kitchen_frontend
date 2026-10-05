@@ -10,7 +10,7 @@ export const UserAvatar = () => {
   const handleClick = () => {
     // In Civil Mind Pro, all roles (owner, admin, cto, staff) 
     // can navigate to the same profile/settings route.
-    navigate('/profile');
+    navigate('/layout/profile');
   };
 
   return (

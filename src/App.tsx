@@ -1,32 +1,41 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import LoginPage from './pages/login_pages/LoginPage'
 import { BrowserRouter as Router } from 'react-router-dom'
-import ForgotPassword from './pages/login_pages/ForgotPassword'
-import ResetPassword from './pages/login_pages/ResetPassword'
-import { ToastContainer } from './components/ui/toast/ToastContainer'
 import { useAuthCheck } from './hooks/useAuthCheck'
-import RegisterOrganization from './pages/organization_pages/RegisterOrganization'
+import { MANAGEMENT_ONLY } from './constants/constants'
 import { AppLayout } from './layout/AppLayout'
 import { ProtectedRoute } from './components/shared/ProtectedRoute'
-import OrganizationSettings from './pages/organization_pages/OrganizationSetting'
-import { MANAGEMENT_ONLY } from './constants/constants'
-import OutletMain from './pages/outlet_pages/OutletMain'
-import MenuCategory from './pages/menu_category_pages/MenuCategoryMain'
-import MenuItemMain from './pages/menu_item_pages/MenuItemMain'
-import RestaurantTableMain from './pages/restaurantTable_pages/RestaurantTablemain'
-import InventoryMain from './pages/inventory_pages/InventoryMain'
-import VendorMain from './pages/vendor_pages/VendorMain'
-import WasteAdjustmentMain from './pages/wasteAdjustment_pages/WasteAdjustmentMain'
-import CustomerMain from './pages/customer_pages/CustomerMain'
-import OfferMain from './pages/offer_pages/OfferMain'
-import LoyaltyProgramMain from './pages/loyalty_program_pages/LoyaltyProgramMain'
-import RecipeCostMain from './pages/recipeCost_pages/RecipeCostMain'
-import PurchaseMain from './pages/purchase_pages/PurchaseMain'
-import CentralKitchenMain from './pages/centralKitchen_pages/CentralKitchenMain'
-import SupportTicketMain from './pages/supportTicket_pages/SupportTicketMain'
-import TaxSettingsMain from './pages/Taxsetting_pages/TaxSettingMain'
-import PrinterSettingsMain from './pages/printer_pages/PrinterMain'
-import SubscriptionMain from './pages/subscription_pages/Subscription'
+import { ToastContainer } from './components/ui/toast/ToastContainer'
+import { lazy } from 'react'
+import PaymentMain from './pages/payment_pages/PaymentMain'
+import NotificationSettingMain from './pages/notificationSetting_pages/notificationSettingMain'
+import NotificationMain from './pages/notification_pages/NotificationMain'
+import UserProfile from './pages/userprofile_pages/UserProfile'
+import OrderMain from './pages/order_pages/OrderMain'
+import KitchenMain from './pages/kitchen_pages/Kitchenmain'
+const ResetPassword = lazy(()=> import('./pages/login_pages/ResetPassword')) 
+const ForgotPassword = lazy(()=> import('./pages/login_pages/ForgotPassword')) 
+const RegisterOrganization = lazy(()=> import('./pages/organization_pages/RegisterOrganization')) 
+const OrganizationSettings = lazy(()=> import('./pages/organization_pages/OrganizationSetting')) 
+const OutletMain = lazy(()=> import('./pages/outlet_pages/OutletMain')) 
+const MenuCategory = lazy(()=> import('./pages/menu_category_pages/MenuCategoryMain')) 
+const MenuItemMain = lazy(()=> import('./pages/menu_item_pages/MenuItemMain')) 
+const RestaurantTableMain = lazy(()=> import('./pages/restaurantTable_pages/RestaurantTablemain')) 
+const InventoryMain = lazy(()=> import('./pages/inventory_pages/InventoryMain')) 
+const VendorMain = lazy(()=> import('./pages/vendor_pages/VendorMain')) 
+const WasteAdjustmentMain = lazy(()=> import('./pages/wasteAdjustment_pages/WasteAdjustmentMain')) 
+const CustomerMain = lazy(()=> import('./pages/customer_pages/CustomerMain')) 
+const OfferMain = lazy(()=> import('./pages/offer_pages/OfferMain')) 
+const LoyaltyProgramMain = lazy(()=> import('./pages/loyalty_program_pages/LoyaltyProgramMain')) 
+const RecipeCostMain = lazy(()=> import('./pages/recipeCost_pages/RecipeCostMain')) 
+const PurchaseMain = lazy(()=> import('./pages/purchase_pages/PurchaseMain')) 
+const CentralKitchenMain = lazy(()=> import('./pages/centralKitchen_pages/CentralKitchenMain')) 
+const SupportTicketMain = lazy(()=> import('./pages/supportTicket_pages/SupportTicketMain')) 
+const TaxSettingsMain = lazy(()=> import('./pages/Taxsetting_pages/TaxSettingMain')) 
+const PrinterSettingsMain = lazy(()=> import('./pages/printer_pages/PrinterMain')) 
+const SubscriptionMain = lazy(()=> import('./pages/subscription_pages/Subscription')) 
+const IntegrationMain = lazy(()=> import('./pages/integration_pages/IntegrationMain')) 
+const ReportDashboardMain = lazy(()=> import('./pages/reports/ReportDashboardMain')) 
 
 const App = () => {
 
@@ -67,7 +76,6 @@ const App = () => {
               <Route path="organization" element={<OrganizationSettings />} />
               <Route path="outlet" element={<OutletMain />} />
               <Route path="tables" element={<RestaurantTableMain />} />
-              <Route path="menu-item" element={<MenuItemMain />} />
               <Route path="inventory" element={<InventoryMain />} />
               <Route path="vendor" element={<VendorMain />} />
               <Route path="customer" element={<CustomerMain />} />
@@ -81,15 +89,22 @@ const App = () => {
               <Route path="taxsetting" element={<TaxSettingsMain />} />
               <Route path="printer" element={<PrinterSettingsMain />} />
               <Route path="subscription" element={<SubscriptionMain />} />
+              <Route path="integrations" element={<IntegrationMain />} />
+              <Route path="report" element={<ReportDashboardMain />} />
+              <Route path="payment" element={<PaymentMain />} />
+              <Route path="kitchen" element={<KitchenMain />} />
+              <Route path="notification-setting" element={<NotificationSettingMain />} />
+              <Route path="notification" element={<NotificationMain />} />
+              <Route path="menu-item" element={<MenuItemMain />} />
+              <Route path="profile" element={<UserProfile />} />
+              <Route path="order" element={<OrderMain />} />
               <Route path="menu-category" element={<MenuCategory />} >
                 <Route path="menu-item/:menuCategoryId" element={<MenuItemMain />} />
               </Route>
-
             </Route>
           </Route>
 
         </Routes>
-
         <ToastContainer />
       </Router>
     </>

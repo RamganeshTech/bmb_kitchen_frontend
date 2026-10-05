@@ -23,7 +23,7 @@ export const TableContainer: React.FC<TableContainerProps> = ({
     tabIndex={0}
     className={cn(
       'w-full overflow-x-auto rounded-xl border border-border bg-surface shadow-sm',
-      'focus:outline-none focus:ring-2 focus:ring-primary/20',
+      'focus:outline-none ',
       className
     )}
     {...props}

@@ -68,12 +68,17 @@ const getErrorMessage = (error: unknown, fallback: string) =>
     error instanceof Error ? error.message : fallback;
 
 // ── Small presentational pieces ───────────────────────────────────────────────
+// const DefaultRateBadge = () => (
+//     <span className="inline-flex items-center rounded-full bg-success-soft px-2.5 py-1 text-xs font-medium text-success">
+//         Default
+//     </span>
+// );
+
 const DefaultRateBadge = () => (
-    <span className="inline-flex items-center rounded-full bg-success-soft px-2.5 py-1 text-xs font-medium text-success">
+    <span className="inline-flex items-center rounded-full bg-success px-2.5 py-1 text-xs font-medium text-white">
         Default
     </span>
 );
-
 const PreviewRow = ({ label, value, isEmphasised = false }: { label: string; value: string; isEmphasised?: boolean }) => (
     <div className={`flex items-center justify-between gap-3 ${isEmphasised ? 'border-t border-border pt-3' : ''}`}>
         <span className={isEmphasised ? 'font-semibold text-heading ' : 'text-body font-medium'}>{label}</span>
@@ -371,6 +376,11 @@ export default function TaxSettingsMain() {
         }
     };
 
+    const handleAddRateSubmit = (event: React.FormEvent) => {
+        event.preventDefault();
+        handleAddTaxRate();
+    };
+
     // ── Body ────────────────────────────────────────────────────────────────────
     let pageBody: ReactNode;
 
@@ -465,7 +475,7 @@ export default function TaxSettingsMain() {
                         )}
                     </div>
 
-                    <TableContainer ariaLabel="Tax rates" caption="Tax rates for this organization">
+                    <TableContainer className="min-h-[300px]" ariaLabel="Tax rates" caption="Tax rates for this organization">
                         <THead>
                             <Tr>
                                 <Th>S.No</Th>
@@ -537,18 +547,9 @@ export default function TaxSettingsMain() {
                 isOpen={isAddRatePanelOpen}
                 onClose={() => !isAddingTaxRate && closeAddRatePanel()}
                 title="Add tax rate"
-                actions={
-                    <>
-                        <Button variant="outline" onClick={closeAddRatePanel} disabled={isAddingTaxRate}>
-                            Cancel
-                        </Button>
-                        <Button isLoading={isAddingTaxRate} loadingText="Adding" onClick={handleAddTaxRate}>
-                            Add rate
-                        </Button>
-                    </>
-                }
             >
-                <div className="flex flex-col gap-4">
+                <form onSubmit={handleAddRateSubmit} noValidate className="flex flex-col gap-4">
+
                     <div className="flex flex-col gap-1.5">
                         <Label htmlFor="newTaxRateName">Rate name</Label>
                         <Input
@@ -571,7 +572,16 @@ export default function TaxSettingsMain() {
                         />
                         <p className="text-sm text-muted">New rates start as non-default. Use "Make default" to apply one to bills.</p>
                     </div>
-                </div>
+
+                    <div className="flex justify-end gap-2 border-t border-border pt-5">
+                        <Button type="button" variant="outline" onClick={closeAddRatePanel} disabled={isAddingTaxRate}>
+                            Cancel
+                        </Button>
+                        <Button type="submit" isLoading={isAddingTaxRate} loadingText="Adding...">
+                            Add rate
+                        </Button>
+                    </div>
+                </form>
             </SideModal>
         </div>
     );

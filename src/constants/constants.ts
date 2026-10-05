@@ -3,7 +3,7 @@ import noimg from '../assets/no image.jpeg'
 
 
 import { type UserRole } from "../features/slices/authSlice";
-import { BadgePercent, Boxes, Building2, ChefHat, CookingPot, CreditCard, FolderKanban, LayoutDashboard, LayoutGrid, LifeBuoy, PackageMinus, Printer, ReceiptText, ShoppingCart, Star, Tags, Users, type LucideProps } from 'lucide-react';
+import { BadgePercent, Boxes, Building2, ChefHat, ClipboardList, CookingPot, CreditCard, FolderKanban, LayoutDashboard, LayoutGrid, LifeBuoy, PackageMinus, Printer, ReceiptText, ShoppingCart, Star, Tags, Users, type LucideProps } from 'lucide-react';
 import { type ComponentType } from 'react';
 
 
@@ -62,6 +62,8 @@ export const baseManagementMenu: MenuItem[] = [
     { name: 'Outlet', path: '/layout/outlet', icon: FolderKanban },
     { name: 'Menu Category', path: '/layout/menu-category', icon: Tags },
     { name: 'Menu Items', path: '/layout/menu-item', icon: Tags },
+    { name: 'Payments', path: '/layout/payment', icon: CreditCard },
+    { name: 'Order', path: '/layout/order', icon: ClipboardList },
     { name: 'Tables', path: '/layout/tables', icon: LayoutGrid },
     { name: 'Inventory', path: '/layout/inventory', icon: Boxes },
     { name: 'Waste Adjustment', path: '/layout/waste-adjustment', icon: PackageMinus },
@@ -74,7 +76,10 @@ export const baseManagementMenu: MenuItem[] = [
     { name: 'Support Ticket', path: '/layout/support-ticket', icon: LifeBuoy },
     { name: 'Tax Setting', path: '/layout/taxsetting', icon: ReceiptText },
     { name: 'Printer', path: '/layout/printer', icon: Printer },
-    { name: 'Subscription', path: '/layout/subscription', icon: CreditCard },
+    { name: 'Integration', path: '/layout/integrations', icon: CreditCard },
+    { name: 'Reports', path: '/layout/report', icon: CreditCard },
+    { name: 'Notification Settings', path: '/layout/notification-settings', icon: CreditCard },
+    { name: 'Notifications', path: '/layout/notification', icon: CreditCard },
 ];
 
 // 2. Compose the staff's menu by adding subscription to the end

@@ -75,10 +75,10 @@ const INVOICE_STATUS_OPTIONS = [
 type Tone = 'success' | 'warning' | 'danger' | 'info';
 
 const TONE_CLASSES: Record<Tone, string> = {
-  success: 'bg-success-soft text-success',
-  warning: 'bg-warning-soft text-warning',
-  danger: 'bg-danger-soft text-danger',
-  info: 'bg-info-soft text-info',
+  success: 'bg-success text-white',
+  warning: 'bg-warning text-white',
+  danger: 'bg-danger text-white',
+  info: 'bg-info text-white',
 };
 
 const currencyFormatter = new Intl.NumberFormat('en-IN', {
@@ -213,9 +213,8 @@ const CycleToggle = ({ value, onChange }: { value: Cycle; onChange: (c: Cycle) =
         type="button"
         aria-pressed={value === option}
         onClick={() => onChange(option)}
-        className={`rounded-md px-4 py-1.5 text-sm font-medium capitalize transition-colors ${
-          value === option ? 'bg-primary text-white' : 'text-body hover:bg-surface-hover'
-        }`}
+        className={`rounded-md px-4 py-1.5 text-sm font-medium capitalize transition-colors ${value === option ? 'bg-primary text-white' : 'text-body hover:bg-surface-hover'
+          }`}
       >
         {option}
       </button>
@@ -287,6 +286,11 @@ export default function SubscriptionMain() {
     }
   };
 
+  const handlePlanSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    handleConfirmPlan();
+  };
+
   const closeInvoicePanel = () => {
     setIsInvoiceOpen(false);
     setInvoiceForm({ invoiceNo: '', date: '', amount: '', status: 'Paid' });
@@ -313,6 +317,11 @@ export default function SubscriptionMain() {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not record the invoice');
     }
+  };
+
+  const handleInvoiceSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    handleAddInvoice();
   };
 
   const planActionLabel = (plan: PlanDefinition) => {
@@ -351,6 +360,16 @@ export default function SubscriptionMain() {
         ))}
       </div>
     </section>
+  );
+
+  const INVOICE_TABLE_COLUMN_COUNT = 5; // S.No, Invoice no, Date, Amount, Status
+
+  const InvoiceMessageRow = ({ message }: { message: string }) => (
+    <Tr>
+      <Td colSpan={INVOICE_TABLE_COLUMN_COUNT}>
+        <div className="flex min-h-[180px] items-center justify-center px-4 text-center text-muted">{message}</div>
+      </Td>
+    </Tr>
   );
 
   // ── Body ────────────────────────────────────────────────────────────────────
@@ -464,9 +483,10 @@ export default function SubscriptionMain() {
             </Button>
           </div>
 
-          <TableContainer ariaLabel="Invoices" caption="Subscription invoices">
+          <TableContainer className="min-h-[300px]" ariaLabel="Invoices" caption="Subscription invoices">
             <THead>
               <Tr>
+                <Th className="w-16">S.No</Th>
                 <Th>Invoice no</Th>
                 <Th>Date</Th>
                 <Th>Amount</Th>
@@ -475,20 +495,29 @@ export default function SubscriptionMain() {
             </THead>
             <TBody>
               {invoicesLoading ? (
-                <Tr>
-                  <Td colSpan={4}>
-                    <span className="text-muted">Loading invoices…</span>
-                  </Td>
-                </Tr>
+                // <Tr>
+                //   <Td colSpan={4}>
+                //     <span className="text-muted">Loading invoices…</span>
+                //   </Td>
+                // </Tr>
+
+                <InvoiceMessageRow message="Loading invoices…" />
+
               ) : invoices.length === 0 ? (
-                <Tr>
-                  <Td colSpan={4}>
-                    <span className="text-muted">No invoices yet. Add the first one to start the history.</span>
-                  </Td>
-                </Tr>
+                // <Tr>
+                //   <Td colSpan={4}>
+                //     <span className="text-muted">No invoices yet. Add the first one to start the history.</span>
+                //   </Td>
+                // </Tr>
+
+                <InvoiceMessageRow message="No invoices yet. Add the first one to start the history." />
+
               ) : (
-                invoices.map((invoice) => (
+                invoices.map((invoice, rowIndex) => (
                   <Tr key={invoice.id ?? invoice.invoiceNo} ariaLabel={`Invoice ${invoice.invoiceNo}`}>
+                    <Td>
+                      <span className="text-muted">{rowIndex + 1}</span>
+                    </Td>
                     <Td>
                       <span className="font-medium text-heading">{invoice.invoiceNo}</span>
                     </Td>
@@ -527,23 +556,11 @@ export default function SubscriptionMain() {
         isOpen={!!pendingPlan}
         onClose={() => !isChangingPlan && !isCreating && setPendingPlan(null)}
         title={subscription ? 'Change plan' : 'Activate plan'}
-        actions={
-          <>
-            <Button variant="outline" onClick={() => setPendingPlan(null)} disabled={isChangingPlan || isCreating}>
-              Cancel
-            </Button>
-            <Button
-              isLoading={isChangingPlan || isCreating}
-              loadingText={subscription ? 'Changing plan' : 'Activating'}
-              onClick={handleConfirmPlan}
-            >
-              {subscription ? 'Confirm change' : 'Activate plan'}
-            </Button>
-          </>
-        }
       >
         {pendingPlan && (
-          <div className="flex flex-col gap-4">
+          // <div className="flex flex-col gap-4">
+          <form onSubmit={handlePlanSubmit} className="flex flex-col gap-4">
+
             {subscription && (
               <div className="rounded-lg border border-border bg-page p-4">
                 <p className="text-sm text-muted">Current plan</p>
@@ -566,7 +583,21 @@ export default function SubscriptionMain() {
                 Your first renewal will be on {formatDate(addCycle(activeCycle).toISOString())}.
               </p>
             )}
-          </div>
+
+            <div className="flex justify-end gap-2 border-t border-border pt-5">
+              <Button type="button" variant="outline" onClick={() => setPendingPlan(null)} disabled={isChangingPlan || isCreating}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                autoFocus
+                isLoading={isChangingPlan || isCreating}
+                loadingText={subscription ? 'Changing plan...' : 'Activating...'}
+              >
+                {subscription ? 'Confirm change' : 'Activate plan'}
+              </Button>
+            </div>
+          </form>
         )}
       </SideModal>
 
@@ -575,60 +606,57 @@ export default function SubscriptionMain() {
         isOpen={isInvoiceOpen}
         onClose={() => !isAddingInvoice && closeInvoicePanel()}
         title="Add invoice"
-        actions={
-          <>
-            <Button variant="outline" onClick={closeInvoicePanel} disabled={isAddingInvoice}>
+
+      >
+        <form onSubmit={handleInvoiceSubmit} noValidate className="flex flex-col gap-4">
+
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="invoiceNo">Invoice number</Label>
+              <Input
+                id="invoiceNo"
+                value={invoiceForm.invoiceNo}
+                onChange={(e) => setInvoiceForm((f) => ({ ...f, invoiceNo: e.target.value }))}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="invoiceDate">Date</Label>
+              <Input
+                id="invoiceDate"
+                type="date"
+                value={invoiceForm.date}
+                onChange={(e) => setInvoiceForm((f) => ({ ...f, date: e.target.value }))}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="invoiceAmount">Amount (₹)</Label>
+              <Input
+                id="invoiceAmount"
+                type="number"
+                min={0}
+                inputMode="decimal"
+                value={invoiceForm.amount}
+                onChange={(e) => setInvoiceForm((f) => ({ ...f, amount: e.target.value }))}
+              />
+            </div>
+            <SearchSelect
+              label="Status"
+              options={INVOICE_STATUS_OPTIONS}
+              value={invoiceForm.status}
+              placeholder="Select status"
+              onChange={(o) => setInvoiceForm((f) => ({ ...f, status: String(o.value) }))}
+              onClear={() => setInvoiceForm((f) => ({ ...f, status: 'Paid' }))}
+            />
+          </div>
+          <div className="flex justify-end gap-2 border-t border-border pt-5">
+            <Button type="button" variant="outline" onClick={closeInvoicePanel} disabled={isAddingInvoice}>
               Cancel
             </Button>
-            <Button
-              leftIcon={<Receipt size={16} />}
-              isLoading={isAddingInvoice}
-              loadingText="Saving"
-              onClick={handleAddInvoice}
-            >
+            <Button type="submit" leftIcon={<Receipt size={16} />} isLoading={isAddingInvoice} loadingText="Saving...">
               Save invoice
             </Button>
-          </>
-        }
-      >
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="invoiceNo">Invoice number</Label>
-            <Input
-              id="invoiceNo"
-              value={invoiceForm.invoiceNo}
-              onChange={(e) => setInvoiceForm((f) => ({ ...f, invoiceNo: e.target.value }))}
-            />
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="invoiceDate">Date</Label>
-            <Input
-              id="invoiceDate"
-              type="date"
-              value={invoiceForm.date}
-              onChange={(e) => setInvoiceForm((f) => ({ ...f, date: e.target.value }))}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="invoiceAmount">Amount (₹)</Label>
-            <Input
-              id="invoiceAmount"
-              type="number"
-              min={0}
-              inputMode="decimal"
-              value={invoiceForm.amount}
-              onChange={(e) => setInvoiceForm((f) => ({ ...f, amount: e.target.value }))}
-            />
-          </div>
-          <SearchSelect
-            label="Status"
-            options={INVOICE_STATUS_OPTIONS}
-            value={invoiceForm.status}
-            placeholder="Select status"
-            onChange={(o) => setInvoiceForm((f) => ({ ...f, status: String(o.value) }))}
-            onClear={() => setInvoiceForm((f) => ({ ...f, status: 'Paid' }))}
-          />
-        </div>
+        </form>
       </SideModal>
     </div>
   );

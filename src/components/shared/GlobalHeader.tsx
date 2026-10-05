@@ -2,6 +2,8 @@ import { Menu } from 'lucide-react';
 // import { UserAvatar } from '../../pages/profile/UserAvatar'; // Adjust path as needed
 import { GlobalSearch } from './GlobalSearch'; // Adjust path as needed
 import { UserAvatar } from './UserAvatar';
+import NotificationBell from './Notificationbell';
+import useCurrentOutlet from '../../hooks/useCurrentOutlet';
 // import GlobalSetupProgress from './GlobalSetupProgress'; // Adjust path as needed
 // import { NotificationIcon } from './NotificationIcon'; // Adjust path as needed
 
@@ -10,6 +12,9 @@ interface GlobalHeaderProps {
 }
 
 export const GlobalHeader = ({ onMenuClick }: GlobalHeaderProps) => {
+
+  const {outletId} =  useCurrentOutlet()
+
   return (
     <header className="h-16 bg-surface border-b border-border flex items-center justify-between px-2 sm:px-6 sticky top-0 z-[35]">
       
@@ -31,9 +36,9 @@ export const GlobalHeader = ({ onMenuClick }: GlobalHeaderProps) => {
       <div className="flex items-center gap-1 sm:gap-4 sm:pl-6 sm:ml-4 sm:border-l border-border shrink-0">
         
         {/* We'll implement these components next */}
-        {/* <NotificationIcon />
+        <NotificationBell outletId={outletId} />
         
-        <GlobalSetupProgress /> */}
+       {/* <GlobalSetupProgress /> */}
         
         <UserAvatar />
         

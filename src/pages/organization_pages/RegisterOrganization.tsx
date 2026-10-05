@@ -20,6 +20,7 @@ import { Card } from '../../components/ui/Card';
 import { Label } from '../../components/ui/Label';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
+import { DOMAIN_NAME } from '../../constants/constants';
 
 
 type Errors = Partial<Record<keyof RegisterOrganizationParams | 'confirmPassword', string>>;
@@ -122,7 +123,7 @@ const RegisterOrganization = () => {
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15">
             <ChefHat className="h-5 w-5" />
           </span>
-          <span className="text-lg font-semibold tracking-tight">BMB Kitchen</span>
+          <span className="text-lg font-semibold tracking-tight">{DOMAIN_NAME}</span>
         </div>
 
         <div className="max-w-md">
@@ -156,7 +157,7 @@ const RegisterOrganization = () => {
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-white">
               <ChefHat className="h-4 w-4" />
             </span>
-            <span className="font-semibold text-heading">BMB Kitchen</span>
+            <span className="font-semibold text-heading">{DOMAIN_NAME}</span>
           </div>
 
           {/* Stepper */}

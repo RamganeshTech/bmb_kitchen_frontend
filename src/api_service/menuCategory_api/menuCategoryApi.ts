@@ -5,7 +5,7 @@ import { Api } from '../../lib/api';
 import type { BaseApiResponse } from '../auth_api/authApi';
 import type { UserRole } from '../../features/slices/authSlice';
 
-export const MENU_CATEGORY_ROLES:UserRole[] = [
+export const MENU_CATEGORY_ROLES: UserRole[] = [
     'owner',
     'admin',
     'cto',
@@ -16,6 +16,8 @@ export const MENU_CATEGORY_ROLES:UserRole[] = [
 export interface CreateMenuCategoryPayload {
     name: string;
     description?: string;
+    image?: File | null;
+
     [key: string]: any;
 }
 
@@ -24,6 +26,11 @@ export interface UpdateMenuCategoryPayload {
     name?: string;
     description?: string;
     [key: string]: any;
+}
+
+export interface UpdateMenuCategoryImagePayload {
+    categoryId: string;
+    image: File;
 }
 
 // ── Base URL Resolver ────────────────────────────────────────────────────────
@@ -159,9 +166,24 @@ export const useCreateMenuCategory = () => {
                 checkPermission(currentRole, MENU_CATEGORY_ROLES);
                 if (!organizationId) throw new Error('Organization ID is missing');
 
+
+                const formData = new FormData();
+                formData.append('name', payload.name);
+
+                if (payload.description) {
+                    formData.append('description', payload.description);
+                }
+
+                if (payload.image) {
+                    formData.append('file', payload.image);
+                }
+
                 const { data } = await Api.post<BaseApiResponse<any>>(
                     `${BASE_MENU_CATEGORY_URL}/${organizationId}`,
-                    payload
+                    // payload
+                    formData,
+                    { headers: { 'Content-Type': 'multipart/form-data' } }
+
                 );
 
                 if (data.ok) return data;
@@ -174,6 +196,80 @@ export const useCreateMenuCategory = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['menu-categories', 'active', organizationId] });
             queryClient.invalidateQueries({ queryKey: ['menu-categories', 'dropdown', organizationId] });
+        },
+    });
+};
+
+
+
+// ── Update Menu Category Image ───────────────────────────────────────────────
+// Route: PATCH /api/menu-category/v1/:organizationId/:categoryId/image
+// Allowed: owner, admin, cto, staff
+export const useUpdateMenuCategoryImage = () => {
+    const { currentRole, organizationId } = useAuthData();
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ categoryId, image }: UpdateMenuCategoryImagePayload) => {
+            try {
+                checkPermission(currentRole, MENU_CATEGORY_ROLES);
+                if (!organizationId) throw new Error('Organization ID is missing');
+                if (!categoryId) throw new Error('Category ID is missing');
+                if (!image) throw new Error('An image file is required');
+
+                const formData = new FormData();
+                formData.append('file', image);
+
+                const { data } = await Api.patch<BaseApiResponse<any>>(
+                    `${BASE_MENU_CATEGORY_URL}/${organizationId}/${categoryId}/image`,
+                    formData,
+                    { headers: { 'Content-Type': 'multipart/form-data' } }
+                );
+
+                if (data.ok) return data;
+                throw new Error(data.message || 'Failed to update category image');
+            } catch (error: any) {
+                const errorMessage = error.response?.data?.message || error.message || 'An unexpected error occurred';
+                throw new Error(errorMessage, { cause: error });
+            }
+        },
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['menu-categories', 'active', organizationId] });
+            queryClient.invalidateQueries({ queryKey: ['menu-categories', 'dropdown', organizationId] });
+            queryClient.invalidateQueries({ queryKey: ['menu-categories', 'detail', organizationId, variables.categoryId] });
+        },
+    });
+};
+
+// ── Remove Menu Category Image ───────────────────────────────────────────────
+// Route: DELETE /api/menu-category/v1/:organizationId/:categoryId/image
+// Allowed: owner, admin, cto, staff
+export const useRemoveMenuCategoryImage = () => {
+    const { currentRole, organizationId } = useAuthData();
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (categoryId: string) => {
+            try {
+                checkPermission(currentRole, MENU_CATEGORY_ROLES);
+                if (!organizationId) throw new Error('Organization ID is missing');
+                if (!categoryId) throw new Error('Category ID is missing');
+
+                const { data } = await Api.delete<BaseApiResponse<any>>(
+                    `${BASE_MENU_CATEGORY_URL}/${organizationId}/${categoryId}/image`
+                );
+
+                if (data.ok) return data;
+                throw new Error(data.message || 'Failed to remove category image');
+            } catch (error: any) {
+                const errorMessage = error.response?.data?.message || error.message || 'An unexpected error occurred';
+                throw new Error(errorMessage, { cause: error });
+            }
+        },
+        onSuccess: (_data, categoryId) => {
+            queryClient.invalidateQueries({ queryKey: ['menu-categories', 'active', organizationId] });
+            queryClient.invalidateQueries({ queryKey: ['menu-categories', 'dropdown', organizationId] });
+            queryClient.invalidateQueries({ queryKey: ['menu-categories', 'detail', organizationId, categoryId] });
         },
     });
 };

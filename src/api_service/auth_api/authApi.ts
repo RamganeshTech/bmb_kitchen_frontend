@@ -144,16 +144,51 @@ export const useUserIsAuthenticated = () => {
   });
 };
 
+
+
+export interface UpdateUserDataPayload {
+  email?: string;
+  userName?: string;
+  phoneNo?: string;
+}
+
+
+export const useUpdateUserData = () => {
+
+  return useMutation({
+    mutationFn: async (payload: UpdateUserDataPayload) => {
+      try {
+        const { data } = await Api.put<BaseApiResponse<any>>(
+          `/api/auth/v1/update`,
+          payload
+        );
+
+        if (data.ok) return data;
+        throw new Error(data.message || 'Failed to update profile');
+      } catch (error: any) {
+        const errorMessage =
+          error.response?.data?.message || error.message || 'An unexpected error occurred';
+        throw new Error(errorMessage, { cause: error });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+      queryClient.invalidateQueries({ queryKey: ['user'] });
+    },
+  });
+};
+
+
 // --- 5. Update Profile Image ---
 export const useUpdateProfileImage = () => {
   return useMutation({
-    mutationFn: async ({ userId, file }: { userId: string; file: File }) => {
+    mutationFn: async ({ userId, file, organizationId }: { userId: string; file: File , organizationId:string}) => {
       try {
         const formData = new FormData();
         formData.append('file', file);
 
         const { data } = await Api.put<BaseApiResponse>(
-          `/api/auth/v1/update-profile-img/${userId}`,
+          `/api/auth/v1/${organizationId}/${userId}/profile-image`,
           formData,
           {
             headers: {
@@ -199,6 +234,7 @@ export const useGetSingleUser = (userId: string | undefined) => {
       }
     },
     enabled: !!userId,
+    retry: false
   });
 };
 

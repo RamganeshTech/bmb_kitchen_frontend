@@ -78,9 +78,18 @@ const resolveOutletName = (printer: PrinterItem, outletNameById: Map<string, str
 const getOutletIdValue = (printer: PrinterItem) => (typeof printer.outletId === 'string' ? printer.outletId : printer.outletId?._id);
 
 // ── Presentational pieces ─────────────────────────────────────────────────────
+// const PrinterTypeBadge = ({ type }: { type: string }) => (
+//     <span
+//         className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-xs font-medium ${type === 'Bill' ? 'bg-primary text-primary-text' : 'bg-info-soft text-info'
+//             }`}
+//     >
+//         {type === 'Bill' ? 'Bill' : 'Kitchen'}
+//     </span>
+// );
+
 const PrinterTypeBadge = ({ type }: { type: string }) => (
     <span
-        className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-xs font-medium ${type === 'Bill' ? 'bg-primary text-primary-text' : 'bg-info-soft text-info'
+        className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-xs font-medium text-white ${type === 'Bill' ? 'bg-primary' : 'bg-info'
             }`}
     >
         {type === 'Bill' ? 'Bill' : 'Kitchen'}
@@ -264,173 +273,181 @@ const PrinterFormPanel = ({
         if (wasSaved) onClose();
     };
 
+
+    const handleFormSubmit = (event: React.FormEvent) => {
+        event.preventDefault();
+        handleSubmit();
+    };
+
     return (
         <SideModal
             isOpen={isOpen}
             onClose={() => !isSubmitting && onClose()}
             title={isEditing ? 'Edit printer' : 'Add printer'}
-            actions={
-                <>
-                    <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
-                        Cancel
-                    </Button>
-                    <Button isLoading={isSubmitting} loadingText="Saving" onClick={handleSubmit}>
-                        {isEditing ? 'Save changes' : 'Add printer'}
-                    </Button>
-                </>
-            }
         >
-            <div className="flex flex-col gap-5">
-                {/* {isEditing ? (
+            <form onSubmit={handleFormSubmit} noValidate className="flex flex-col gap-5">
+
+                <div className="flex flex-col gap-5">
+                    {/* {isEditing ? (
           <div className="rounded-xl border border-border bg-page p-4">
             <p className="text-sm text-muted">Outlet</p>
             <p className="font-medium text-heading">{outletOptions.find((option) => option.value === formValues.outletId)?.label ?? 'Unknown outlet'}</p>
             <p className="text-sm text-muted">A printer can't be moved to another outlet. Add a new one instead.</p>
           </div>
         ) : ( */}
-                <SearchSelect
-                    label="Outlet"
-                    options={outletOptions}
-                    value={formValues.outletId}
-                    placeholder="Select outlet"
-                    onChange={(option) => updateFormValues({ outletId: String(option.value) })}
-                    onClear={() => updateFormValues({ outletId: '' })}
-                />
-                {/* )} */}
-
-                <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="printerName">Printer name</Label>
-                    <Input id="printerName" value={formValues.name} onChange={(event) => updateFormValues({ name: event.target.value })} />
-                </div>
-
-                <div className="flex flex-col gap-2">
-                    <Label>Printer type</Label>
-                    <div role="radiogroup" aria-label="Printer type" className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        {PRINTER_TYPE_OPTIONS.map((option) => {
-                            const isSelected = formValues.type === option.value;
-                            return (
-                                <button
-                                    key={option.value}
-                                    type="button"
-                                    role="radio"
-                                    aria-checked={isSelected}
-                                    onClick={() => updateFormValues({ type: option.value })}
-                                    className={`flex flex-col gap-1 rounded-xl border-2 p-3 text-left transition-colors ${isSelected ? 'border-primary bg-primary-soft' : 'border-border bg-surface hover:bg-surface-hover'
-                                        }`}
-                                >
-                                    <span className="flex items-center gap-2 font-semibold text-heading">
-                                        {option.icon}
-                                        {option.title}
-                                    </span>
-                                    <span className="text-sm text-muted">{option.description}</span>
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="printerModel">Printer model (optional)</Label>
-                    <Input id="printerModel" value={formValues.printerModel} onChange={(event) => updateFormValues({ printerModel: event.target.value })} />
-                </div>
-
-                <div className="flex flex-col gap-2">
-                    <Label htmlFor="printerConnection">Connection</Label>
-                    <Input
-                        id="printerConnection"
-                        placeholder="For example LAN 192.168.1.44"
-                        value={formValues.connection}
-                        onChange={(event) => updateFormValues({ connection: event.target.value })}
+                    <SearchSelect
+                        label="Outlet"
+                        options={outletOptions}
+                        value={formValues.outletId}
+                        placeholder="Select outlet"
+                        onChange={(option) => updateFormValues({ outletId: String(option.value) })}
+                        onClear={() => updateFormValues({ outletId: '' })}
                     />
-                    <div className="flex flex-wrap gap-2">
-                        {CONNECTION_QUICK_FILLS.map((quickFill) => (
-                            <button
-                                key={quickFill.label}
-                                type="button"
-                                onClick={() => updateFormValues({ connection: quickFill.value })}
-                                className="rounded-full border border-border px-3 py-1 text-sm text-body hover:bg-surface-hover"
-                            >
-                                {quickFill.label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
+                    {/* )} */}
 
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                    <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="printerName">Printer name</Label>
+                        <Input id="printerName" value={formValues.name} onChange={(event) => updateFormValues({ name: event.target.value })} />
+                    </div>
+
                     <div className="flex flex-col gap-2">
-                        <Label>Paper size</Label>
-                        <div role="radiogroup" aria-label="Paper size" className="inline-flex w-fit rounded-lg border border-border bg-surface p-1">
-                            {PAPER_SIZE_OPTIONS.map((paperSize) => (
+                        <Label>Printer type</Label>
+                        <div role="radiogroup" aria-label="Printer type" className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            {PRINTER_TYPE_OPTIONS.map((option) => {
+                                const isSelected = formValues.type === option.value;
+                                return (
+                                    <button
+                                        key={option.value}
+                                        type="button"
+                                        role="radio"
+                                        aria-checked={isSelected}
+                                        onClick={() => updateFormValues({ type: option.value })}
+                                        className={`flex flex-col gap-1 rounded-xl border-2 p-3 text-left transition-colors ${isSelected ? 'border-primary bg-primary-soft' : 'border-border bg-surface hover:bg-surface-hover'
+                                            }`}
+                                    >
+                                        <span className="flex items-center gap-2 font-semibold text-heading">
+                                            {option.icon}
+                                            {option.title}
+                                        </span>
+                                        <span className="text-sm text-muted">{option.description}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="printerModel">Printer model (optional)</Label>
+                        <Input id="printerModel" value={formValues.printerModel} onChange={(event) => updateFormValues({ printerModel: event.target.value })} />
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                        <Label htmlFor="printerConnection">Connection</Label>
+                        <Input
+                            id="printerConnection"
+                            placeholder="For example LAN 192.168.1.44"
+                            value={formValues.connection}
+                            onChange={(event) => updateFormValues({ connection: event.target.value })}
+                        />
+                        <div className="flex flex-wrap gap-2">
+                            {CONNECTION_QUICK_FILLS.map((quickFill) => (
                                 <button
-                                    key={paperSize}
+                                    key={quickFill.label}
                                     type="button"
-                                    role="radio"
-                                    aria-checked={formValues.size === paperSize}
-                                    onClick={() => updateFormValues({ size: paperSize })}
-                                    className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${formValues.size === paperSize ? 'bg-primary text-white' : 'text-body hover:bg-surface-hover'
-                                        }`}
+                                    onClick={() => updateFormValues({ connection: quickFill.value })}
+                                    className="rounded-full border border-border px-3 py-1 text-sm text-body hover:bg-surface-hover"
                                 >
-                                    {paperSize}
+                                    {quickFill.label}
                                 </button>
                             ))}
                         </div>
                     </div>
 
-                    <div className="flex flex-col gap-2">
-                        <Label>Copies per print</Label>
-                        <div className="inline-flex w-fit items-center gap-3 rounded-lg border border-border bg-surface p-1">
-                            <button
-                                type="button"
-                                aria-label="Decrease copies"
-                                disabled={formValues.copies <= MIN_COPIES}
-                                onClick={() => updateFormValues({ copies: formValues.copies - 1 })}
-                                className="flex h-8 w-8 items-center justify-center rounded-md text-body hover:bg-surface-hover disabled:opacity-40"
-                            >
-                                <Minus size={14} />
-                            </button>
-                            <span className="w-6 text-center font-semibold text-heading" aria-live="polite">
-                                {formValues.copies}
-                            </span>
-                            <button
-                                type="button"
-                                aria-label="Increase copies"
-                                disabled={formValues.copies >= MAX_COPIES}
-                                onClick={() => updateFormValues({ copies: formValues.copies + 1 })}
-                                className="flex h-8 w-8 items-center justify-center rounded-md text-body hover:bg-surface-hover disabled:opacity-40"
-                            >
-                                <Plus size={14} />
-                            </button>
+                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                        <div className="flex flex-col gap-2">
+                            <Label>Paper size</Label>
+                            <div role="radiogroup" aria-label="Paper size" className="inline-flex w-fit rounded-lg border border-border bg-surface p-1">
+                                {PAPER_SIZE_OPTIONS.map((paperSize) => (
+                                    <button
+                                        key={paperSize}
+                                        type="button"
+                                        role="radio"
+                                        aria-checked={formValues.size === paperSize}
+                                        onClick={() => updateFormValues({ size: paperSize })}
+                                        className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${formValues.size === paperSize ? 'bg-primary text-white' : 'text-body hover:bg-surface-hover'
+                                            }`}
+                                    >
+                                        {paperSize}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                            <Label>Copies per print</Label>
+                            <div className="inline-flex w-fit items-center gap-3 rounded-lg border border-border bg-surface p-1">
+                                <button
+                                    type="button"
+                                    aria-label="Decrease copies"
+                                    disabled={formValues.copies <= MIN_COPIES}
+                                    onClick={() => updateFormValues({ copies: formValues.copies - 1 })}
+                                    className="flex h-8 w-8 items-center justify-center rounded-md text-body hover:bg-surface-hover disabled:opacity-40"
+                                >
+                                    <Minus size={14} />
+                                </button>
+                                <span className="w-6 text-center font-semibold text-heading" aria-live="polite">
+                                    {formValues.copies}
+                                </span>
+                                <button
+                                    type="button"
+                                    aria-label="Increase copies"
+                                    disabled={formValues.copies >= MAX_COPIES}
+                                    onClick={() => updateFormValues({ copies: formValues.copies + 1 })}
+                                    className="flex h-8 w-8 items-center justify-center rounded-md text-body hover:bg-surface-hover disabled:opacity-40"
+                                >
+                                    <Plus size={14} />
+                                </button>
+                            </div>
                         </div>
                     </div>
+
+                    {formValues.type === 'KOT' && (
+                        <div className="flex flex-col gap-2">
+                            <Label>Menu categories for this printer</Label>
+                            {selectableCategoryNames.length === 0 ? (
+                                <p className="text-sm text-muted">No menu categories yet. Add categories in Menu Management first.</p>
+                            ) : (
+                                <div className="flex flex-wrap gap-2">
+                                    {selectableCategoryNames.map((categoryName) => {
+                                        const isSelected = formValues.categories.includes(categoryName);
+                                        return (
+                                            <button
+                                                key={categoryName}
+                                                type="button"
+                                                aria-pressed={isSelected}
+                                                onClick={() => toggleCategory(categoryName)}
+                                                className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${isSelected ? 'border-primary bg-primary-soft text-heading' : 'border-border bg-surface text-body hover:bg-surface-hover'
+                                                    }`}
+                                            >
+                                                {categoryName}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
-                {formValues.type === 'KOT' && (
-                    <div className="flex flex-col gap-2">
-                        <Label>Menu categories for this printer</Label>
-                        {selectableCategoryNames.length === 0 ? (
-                            <p className="text-sm text-muted">No menu categories yet. Add categories in Menu Management first.</p>
-                        ) : (
-                            <div className="flex flex-wrap gap-2">
-                                {selectableCategoryNames.map((categoryName) => {
-                                    const isSelected = formValues.categories.includes(categoryName);
-                                    return (
-                                        <button
-                                            key={categoryName}
-                                            type="button"
-                                            aria-pressed={isSelected}
-                                            onClick={() => toggleCategory(categoryName)}
-                                            className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${isSelected ? 'border-primary bg-primary-soft text-heading' : 'border-border bg-surface text-body hover:bg-surface-hover'
-                                                }`}
-                                        >
-                                            {categoryName}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </div>
-                )}
-            </div>
+                <div className="flex justify-end gap-2 border-t border-border pt-5">
+                    <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+                        Cancel
+                    </Button>
+                    <Button type="submit" isLoading={isSubmitting} loadingText="Saving...">
+                        {isEditing ? 'Save changes' : 'Add printer'}
+                    </Button>
+                </div>
+            </form>
         </SideModal>
     );
 };
@@ -544,6 +561,11 @@ export default function PrinterSettingsMain() {
         } catch (err) {
             toast.error(getErrorMessage(err, 'Could not complete this action'));
         }
+    };
+
+    const handleConfirmSubmit = (event: React.FormEvent) => {
+        event.preventDefault();
+        handleConfirmPendingAction();
     };
 
     const confirmationCopy = pendingAction ? buildConfirmationCopy(pendingAction) : null;
@@ -690,25 +712,28 @@ export default function PrinterSettingsMain() {
                 isOpen={!!pendingAction}
                 onClose={() => !isActionInProgress && setPendingAction(null)}
                 title={confirmationCopy?.title ?? ''}
-                actions={
-                    confirmationCopy && (
-                        <>
-                            <Button variant="outline" onClick={() => setPendingAction(null)} disabled={isActionInProgress}>
+            >
+                {/* {confirmationCopy && <p className="text-body">{confirmationCopy.message}</p>} */}
+
+                {confirmationCopy && (
+                    <form onSubmit={handleConfirmSubmit} className="flex flex-col gap-5">
+                        <p className="text-body">{confirmationCopy.message}</p>
+                        <div className="flex justify-end gap-2 border-t border-border pt-5">
+                            <Button type="button" variant="outline" onClick={() => setPendingAction(null)} disabled={isActionInProgress}>
                                 Cancel
                             </Button>
                             <Button
+                                type="submit"
+                                autoFocus={pendingAction?.kind !== 'hardDelete'}
                                 variant={confirmationCopy.isDanger ? 'danger' : 'primary'}
                                 isLoading={isActionInProgress}
                                 loadingText={confirmationCopy.loadingLabel}
-                                onClick={handleConfirmPendingAction}
                             >
                                 {confirmationCopy.confirmLabel}
                             </Button>
-                        </>
-                    )
-                }
-            >
-                {confirmationCopy && <p className="text-body">{confirmationCopy.message}</p>}
+                        </div>
+                    </form>
+                )}
             </SideModal>
         </div>
     );

@@ -627,8 +627,8 @@
 
 
 
-import { useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
-import { AlertCircle, Archive, ChevronRight, MoreVertical, Pencil, Plus, RefreshCw, RotateCcw, Search, Tags, Trash2, X } from 'lucide-react';
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
+import { AlertCircle, Archive, ChevronRight, ImagePlus, MoreVertical, Pencil, Plus, RefreshCw, RotateCcw, Search, Tags, Trash2, Upload, X } from 'lucide-react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { toast } from '../../components/ui/toast/Toast';
@@ -641,7 +641,8 @@ import { SideModal } from '../../components/ui/SideModal';
 import { Dropdown } from '../../components/ui/Dropdown';
 import {
   useCreateMenuCategory, useGetActiveMenuCategories, useGetInactiveMenuCategories, useGetMenuCategoryById,
-  useHardDeleteMenuCategory, useRecoverMenuCategory, useSoftDeleteMenuCategory, useUpdateMenuCategory,
+  useHardDeleteMenuCategory, useRecoverMenuCategory, useRemoveMenuCategoryImage, useSoftDeleteMenuCategory, useUpdateMenuCategory,
+  useUpdateMenuCategoryImage,
 } from '../../api_service/menuCategory_api/menuCategoryApi';
 
 /* -------------------------------------------------------------------------- */
@@ -655,6 +656,7 @@ interface MenuCategoryData {
   isActive?: boolean;
   createdAt?: string;
   updatedAt?: string;
+  image?: { key: string; url: string; originalName: string; uploadedAt: string } | null;
 }
 
 interface CategoryFormValues {
@@ -1129,6 +1131,75 @@ const InactiveCategoriesTable = ({ searchText, selectedCategoryId, onOpenDetails
 /* -------------------------------------------------------------------------- */
 /*  Create / edit modal                                                       */
 /* -------------------------------------------------------------------------- */
+const MAX_CATEGORY_IMAGE_SIZE_MB = 5;
+
+const CategoryImageField = ({
+  imageUrl,
+  isBusy,
+  onPick,
+  onRemove,
+}: {
+  imageUrl: string | null;
+  isBusy: boolean;
+  onPick: (file: File) => void;
+  onRemove: () => void;
+}) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = event.target.files?.[0];
+    event.target.value = ''; // lets the user pick the same file again
+    if (!selectedFile) return;
+
+    if (!selectedFile.type.startsWith('image/')) {
+      toast.error('Choose an image file');
+      return;
+    }
+    if (selectedFile.size > MAX_CATEGORY_IMAGE_SIZE_MB * 1024 * 1024) {
+      toast.error(`Image must be ${MAX_CATEGORY_IMAGE_SIZE_MB} MB or smaller`);
+      return;
+    }
+    onPick(selectedFile);
+  };
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label>Category image (optional)</Label>
+      <div className="flex items-center gap-4 rounded-xl border border-dashed border-border bg-page p-4">
+        <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-surface text-muted">
+          {imageUrl ? (
+            <img src={imageUrl} alt="Category" className="h-full w-full object-cover" />
+          ) : (
+            <ImagePlus size={28} />
+          )}
+        </div>
+
+        <div className="flex min-w-0 flex-col gap-2">
+          <p className="text-sm text-muted">JPG, PNG or WebP, up to {MAX_CATEGORY_IMAGE_SIZE_MB} MB.</p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              leftIcon={<Upload size={14} />}
+              isLoading={isBusy}
+              loadingText="Uploading..."
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {imageUrl ? 'Change image' : 'Upload image'}
+            </Button>
+            {imageUrl && (
+              <Button type="button" variant="ghost" size="sm" leftIcon={<Trash2 size={14} />} disabled={isBusy} onClick={onRemove}>
+                Remove
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+      <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={handleFileChange} />
+    </div>
+  );
+};
 
 const CategoryFormModal = ({
   category,
@@ -1142,11 +1213,61 @@ const CategoryFormModal = ({
   const isEditing = !!category;
   const { mutateAsync: createCategoryAsync, isPending: isCreating } = useCreateMenuCategory();
   const { mutateAsync: updateCategoryAsync, isPending: isUpdating } = useUpdateMenuCategory();
+
+  const { mutateAsync: updateImageAsync, isPending: isUploadingImage } = useUpdateMenuCategoryImage();
+  const { mutateAsync: removeImageAsync, isPending: isRemovingImage } = useRemoveMenuCategoryImage();
+
   const isSaving = isCreating || isUpdating;
 
   const [name, setName] = useState(category?.name ?? '');
   const [description, setDescription] = useState(category?.description ?? '');
   const [nameError, setNameError] = useState('');
+
+  const isImageBusy = isUploadingImage || isRemovingImage;
+
+  // Create mode: the file is kept locally and sent with the create request
+  const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
+  const [pendingPreviewUrl, setPendingPreviewUrl] = useState<string | null>(null);
+  // Edit mode: the saved image, kept in sync after each upload or removal
+  const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(category?.image?.url ?? null);
+
+  useEffect(() => {
+    if (!pendingImageFile) {
+      setPendingPreviewUrl(null);
+      return;
+    }
+    const objectUrl = URL.createObjectURL(pendingImageFile);
+    setPendingPreviewUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [pendingImageFile]);
+
+  const handleImagePick = async (file: File) => {
+    if (!category) {
+      setPendingImageFile(file);
+      return;
+    }
+    try {
+      const response = await updateImageAsync({ categoryId: category._id, image: file });
+      setCurrentImageUrl(response.data?.image?.url ?? null);
+      toast.success('Image updated');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to update image'));
+    }
+  };
+
+  const handleImageRemove = async () => {
+    if (!category) {
+      setPendingImageFile(null);
+      return;
+    }
+    try {
+      await removeImageAsync(category._id);
+      setCurrentImageUrl(null);
+      toast.success('Image removed');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to remove image'));
+    }
+  };
 
   const isDraftChanged = name.trim() !== (category?.name ?? '') || description.trim() !== (category?.description ?? '');
 
@@ -1163,7 +1284,7 @@ const CategoryFormModal = ({
         await updateCategoryAsync({ id: category._id, ...values });
         toast.success('Category updated successfully');
       } else {
-        await createCategoryAsync(values);
+        await createCategoryAsync({ ...values, image: pendingImageFile });
         toast.success('Category created successfully');
       }
       onSaved();
@@ -1180,7 +1301,7 @@ const CategoryFormModal = ({
   return (
     <SideModal
       isOpen
-      onClose={() => !isSaving && onClose()}
+      onClose={() => !isSaving && !isImageBusy && onClose()}
       title={isEditing ? 'Edit category' : 'New category'}
 
     >
@@ -1212,6 +1333,13 @@ const CategoryFormModal = ({
             className="w-full resize-y rounded-lg border border-border bg-surface px-3 py-2 text-base text-heading placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary-soft"
           />
         </div>
+
+        <CategoryImageField
+          imageUrl={category ? currentImageUrl : pendingPreviewUrl}
+          isBusy={isImageBusy}
+          onPick={handleImagePick}
+          onRemove={handleImageRemove}
+        />
 
 
         <div className="flex justify-end gap-2 border-t border-border pt-5">
@@ -1269,7 +1397,12 @@ const CategoryDetailsModal = ({
     modalBody = (
       <div className="flex flex-col gap-6">
         <div className="flex items-center gap-4">
-          <CategoryAvatar name={category.name} isActive={isCategoryActive} isLarge />
+          {/* <CategoryAvatar name={category.name} isActive={isCategoryActive} isLarge /> */}
+          {category.image?.url ? (
+            <img src={category.image.url} alt={category.name} className="h-20 w-20 shrink-0 rounded-xl border border-border object-cover" />
+          ) : (
+            <CategoryAvatar name={category.name} isActive={isCategoryActive} isLarge />
+          )}
           <div className="min-w-0 space-y-2">
             <h3 className="break-words text-xl font-semibold text-heading">{category.name}</h3>
             <StatusBadge isActive={isCategoryActive} />
@@ -1350,7 +1483,7 @@ const MenuCategory = () => {
   // TODO: adjust this route to match your router config
   const handleViewItems = (categoryId: string) => navigate(`menu-item/${categoryId}`);
 
-  const isChildRoute = location.pathname.includes('single');
+  const isChildRoute = location.pathname.includes('menu-item');
   if (isChildRoute) {
     return <Outlet />;
   }
@@ -1383,7 +1516,7 @@ const MenuCategory = () => {
               role="tab"
               aria-selected={activeTab === tab}
               onClick={() => setActiveTab(tab)}
-              className={`-mb-px border-b-2 px-4 py-2 text-base font-medium capitalize transition-colors ${activeTab === tab ? 'border-primary text-heading' : 'border-transparent text-muted hover:text-heading'
+              className={`-mb-px  cursor-pointer border-b-2 px-4 py-2 text-base font-medium capitalize transition-colors ${activeTab === tab ? 'border-primary text-heading' : 'border-transparent text-muted hover:text-heading'
                 }`}
             >
               {tab}

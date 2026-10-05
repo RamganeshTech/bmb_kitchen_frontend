@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import { AlertCircle, ChevronRight, Clock, Filter, Loader2, Pencil, Plus, RefreshCw, Search, Trash2, UtensilsCrossed, X } from 'lucide-react';
 
 import { toast } from '../../components/ui/toast/Toast';
@@ -13,7 +13,7 @@ import useDebounce from '../../hooks/useDebounce';
 import { useAuthData } from '../../hooks/useAuthData';
 // TODO: fix these two paths to match your project
 import {
-    MENU_ITEM_WRITE_ROLES, useAddMenuItemImages, useCreateMenuItem, useGetActiveMenuItems, useGetInactiveMenuItems, useGetMenuItemById,
+      useAddMenuItemImages, useCreateMenuItem, useGetActiveMenuItems, useGetInactiveMenuItems, useGetMenuItemById,
     useHardDeleteMenuItem, useRecoverMenuItem, useRemoveMenuItemImage, useSoftDeleteMenuItem, useUpdateMenuItem, type MenuItemQueryParams,
 } from '../../api_service/menuItem_api/menuItemApi';
 import { useGetMenuCategoryDropdown } from '../../api_service/menuCategory_api/menuCategoryApi';
@@ -811,7 +811,18 @@ const MenuItemMain = () => {
     //   const canWrite = MENU_ITEM_WRITE_ROLES.includes(currentRole!);
     const canWrite = true
 
-    const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
+    const [filters, setFilters] = useState<Filters>({
+        ...DEFAULT_FILTERS,
+        categoryId: menuCategoryId ?? '',
+    });
+
+
+    // Keep the filter in sync if the route param changes while this component stays mounted
+    // (e.g. going from /menu-item/abc to /menu-item/xyz, or back to the direct page)
+    useEffect(() => {
+        setFilters((prev) => ({ ...prev, categoryId: menuCategoryId ?? '' }));
+    }, [menuCategoryId]);
+
     const [showInactive, setShowInactive] = useState(false);
     const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
     const [drawer, setDrawer] = useState<DrawerState>(null);

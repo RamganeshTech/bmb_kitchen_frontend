@@ -96,9 +96,8 @@ const IconAction = ({ label, onClick, danger, children }: { label: string; onCli
     title={label}
     aria-label={label}
     onClick={onClick}
-    className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-surface transition-colors ${
-      danger ? 'text-danger hover:bg-danger-soft' : 'text-body hover:bg-surface-hover hover:text-heading'
-    }`}
+    className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-surface transition-colors ${danger ? 'text-danger hover:bg-danger-soft' : 'text-body hover:bg-surface-hover hover:text-heading'
+      }`}
   >
     {children}
   </button>
@@ -111,11 +110,17 @@ const Stat = ({ label, children }: { label: string; children: ReactNode }) => (
   </div>
 );
 
+// const StatusBadge = ({ status }: { status?: string }) => {
+//   const style =
+//     status === 'paid' ? 'bg-success-soft text-success' : status === 'partial' ? 'bg-info-soft text-info' : 'bg-warning-soft text-warning';
+//   return <span className={`inline-flex rounded-full px-2.5 py-0.5 text-sm font-medium ${style}`}>{cap(status)}</span>;
+// };
+
 const StatusBadge = ({ status }: { status?: string }) => {
-  const style =
-    status === 'paid' ? 'bg-success-soft text-success' : status === 'partial' ? 'bg-info-soft text-info' : 'bg-warning-soft text-warning';
-  return <span className={`inline-flex rounded-full px-2.5 py-0.5 text-sm font-medium ${style}`}>{cap(status)}</span>;
+  const style = status === 'paid' ? 'bg-success' : status === 'partial' ? 'bg-info' : 'bg-warning';
+  return <span className={`inline-flex rounded-full px-2.5 py-0.5 text-sm font-medium text-white ${style}`}>{cap(status)}</span>;
 };
+
 
 const ConfirmDialog = ({
   title, message, confirmLabel, isPending, onCancel, onConfirm,
@@ -421,8 +426,8 @@ const PurchaseMain = () => {
     }
   };
 
-  const tabClass = (active: boolean) =>
-    `rounded-lg px-3 py-1.5 text-base font-medium transition-colors ${active ? 'bg-primary-soft text-heading' : 'text-muted hover:text-heading'}`;
+  // const tabClass = (active: boolean) =>
+  //   `rounded-lg px-3 py-1.5 cursor-pointer text-base font-medium transition-colors ${active ? 'bg-primary-soft text-heading' : 'text-muted hover:text-heading'}`;
 
   return (
     <div className="flex w-full flex-col gap-3 p-2">
@@ -434,7 +439,7 @@ const PurchaseMain = () => {
           </span>
           <div>
             <h1 className="text-2xl font-semibold text-heading">Purchases</h1>
-            <p className="text-sm text-muted">Goods bought from vendors. Stock is updated when a purchase is created</p>
+            <p className="text-sm font-semibold text-muted">Goods bought from vendors. Stock is updated when a purchase is created</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -490,8 +495,26 @@ const PurchaseMain = () => {
         <section className="min-w-0 rounded-xl border border-border bg-surface shadow-sm lg:col-span-3">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
             <div className="flex items-center gap-1">
-              <button type="button" className={tabClass(tab === 'active')} onClick={() => setTab('active')}>Active</button>
-              {canWrite && <button type="button" className={tabClass(tab === 'inactive')} onClick={() => setTab('inactive')}>Inactive</button>}
+              {/* <button type="button" className={tabClass(tab === 'active')} onClick={() => setTab('active')}>Active</button>
+              {canWrite && <button type="button" className={tabClass(tab === 'inactive')} onClick={() => setTab('inactive')}>Inactive</button>} */}
+
+              <div role="tablist" aria-label="Category list" className="flex gap-1 border-b border-border">
+                {(['active', 'inactive'] as const).map((currentTab) => (
+                  <button
+                    key={currentTab}
+                    type="button"
+                    role="tab"
+                    aria-selected={tab === currentTab}
+                    onClick={() => setTab(currentTab)}
+                    className={`-mb-px  cursor-pointer border-b-2 px-4 py-2 text-base font-medium capitalize transition-colors ${tab === currentTab ? 'border-primary text-heading' : 'border-transparent text-muted hover:text-heading'
+                      }`}
+
+                    // className={tabClass(currentTab === 'active'? true : false)}
+                  >
+                    {currentTab}
+                  </button>
+                ))}
+              </div>
             </div>
             <p className="text-sm text-muted">{rows.length} of {allRows.length} purchases</p>
           </div>
@@ -524,7 +547,7 @@ const PurchaseMain = () => {
               ) : rows.length === 0 ? (
                 <Tr>
                   <Td colSpan={7}>
-                    <p className="py-10 text-center text-base text-muted">
+                    <p className="py-26 text-center text-base text-muted">
                       {allRows.length === 0 ? (tab === 'active' ? 'No purchases yet.' : 'No inactive purchases.') : 'No purchases match these filters.'}
                     </p>
                   </Td>
