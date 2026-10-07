@@ -13,29 +13,32 @@ import NotificationMain from './pages/notification_pages/NotificationMain'
 import UserProfile from './pages/userprofile_pages/UserProfile'
 import OrderMain from './pages/order_pages/OrderMain'
 import KitchenMain from './pages/kitchen_pages/Kitchenmain'
-const ResetPassword = lazy(()=> import('./pages/login_pages/ResetPassword')) 
-const ForgotPassword = lazy(()=> import('./pages/login_pages/ForgotPassword')) 
-const RegisterOrganization = lazy(()=> import('./pages/organization_pages/RegisterOrganization')) 
-const OrganizationSettings = lazy(()=> import('./pages/organization_pages/OrganizationSetting')) 
-const OutletMain = lazy(()=> import('./pages/outlet_pages/OutletMain')) 
-const MenuCategory = lazy(()=> import('./pages/menu_category_pages/MenuCategoryMain')) 
-const MenuItemMain = lazy(()=> import('./pages/menu_item_pages/MenuItemMain')) 
-const RestaurantTableMain = lazy(()=> import('./pages/restaurantTable_pages/RestaurantTablemain')) 
-const InventoryMain = lazy(()=> import('./pages/inventory_pages/InventoryMain')) 
-const VendorMain = lazy(()=> import('./pages/vendor_pages/VendorMain')) 
-const WasteAdjustmentMain = lazy(()=> import('./pages/wasteAdjustment_pages/WasteAdjustmentMain')) 
-const CustomerMain = lazy(()=> import('./pages/customer_pages/CustomerMain')) 
-const OfferMain = lazy(()=> import('./pages/offer_pages/OfferMain')) 
-const LoyaltyProgramMain = lazy(()=> import('./pages/loyalty_program_pages/LoyaltyProgramMain')) 
-const RecipeCostMain = lazy(()=> import('./pages/recipeCost_pages/RecipeCostMain')) 
-const PurchaseMain = lazy(()=> import('./pages/purchase_pages/PurchaseMain')) 
-const CentralKitchenMain = lazy(()=> import('./pages/centralKitchen_pages/CentralKitchenMain')) 
-const SupportTicketMain = lazy(()=> import('./pages/supportTicket_pages/SupportTicketMain')) 
-const TaxSettingsMain = lazy(()=> import('./pages/Taxsetting_pages/TaxSettingMain')) 
-const PrinterSettingsMain = lazy(()=> import('./pages/printer_pages/PrinterMain')) 
-const SubscriptionMain = lazy(()=> import('./pages/subscription_pages/Subscription')) 
-const IntegrationMain = lazy(()=> import('./pages/integration_pages/IntegrationMain')) 
-const ReportDashboardMain = lazy(()=> import('./pages/reports/ReportDashboardMain')) 
+import RoleMain from './pages/role_pages/RoleMain'
+import UserMain from './pages/user_pages/UserMain'
+import UserSingle from './pages/user_pages/UserSingle'
+const ResetPassword = lazy(() => import('./pages/login_pages/ResetPassword'))
+const ForgotPassword = lazy(() => import('./pages/login_pages/ForgotPassword'))
+const RegisterOrganization = lazy(() => import('./pages/organization_pages/RegisterOrganization'))
+const OrganizationSettings = lazy(() => import('./pages/organization_pages/OrganizationSetting'))
+const OutletMain = lazy(() => import('./pages/outlet_pages/OutletMain'))
+const MenuCategory = lazy(() => import('./pages/menu_category_pages/MenuCategoryMain'))
+const MenuItemMain = lazy(() => import('./pages/menu_item_pages/MenuItemMain'))
+const RestaurantTableMain = lazy(() => import('./pages/restaurantTable_pages/RestaurantTablemain'))
+const InventoryMain = lazy(() => import('./pages/inventory_pages/InventoryMain'))
+const VendorMain = lazy(() => import('./pages/vendor_pages/VendorMain'))
+const WasteAdjustmentMain = lazy(() => import('./pages/wasteAdjustment_pages/WasteAdjustmentMain'))
+const CustomerMain = lazy(() => import('./pages/customer_pages/CustomerMain'))
+const OfferMain = lazy(() => import('./pages/offer_pages/OfferMain'))
+const LoyaltyProgramMain = lazy(() => import('./pages/loyalty_program_pages/LoyaltyProgramMain'))
+const RecipeCostMain = lazy(() => import('./pages/recipeCost_pages/RecipeCostMain'))
+const PurchaseMain = lazy(() => import('./pages/purchase_pages/PurchaseMain'))
+const CentralKitchenMain = lazy(() => import('./pages/centralKitchen_pages/CentralKitchenMain'))
+const SupportTicketMain = lazy(() => import('./pages/supportTicket_pages/SupportTicketMain'))
+const TaxSettingsMain = lazy(() => import('./pages/Taxsetting_pages/TaxSettingMain'))
+const PrinterSettingsMain = lazy(() => import('./pages/printer_pages/PrinterMain'))
+const SubscriptionMain = lazy(() => import('./pages/subscription_pages/Subscription'))
+const IntegrationMain = lazy(() => import('./pages/integration_pages/IntegrationMain'))
+const ReportDashboardMain = lazy(() => import('./pages/reports/ReportDashboardMain'))
 
 const App = () => {
 
@@ -98,6 +101,12 @@ const App = () => {
               <Route path="menu-item" element={<MenuItemMain />} />
               <Route path="profile" element={<UserProfile />} />
               <Route path="order" element={<OrderMain />} />
+              <Route path="role" element={<RoleMain />} />
+
+              <Route path="users" element={<UserMain />} >
+                <Route path="single/:userId" element={<UserSingle />} />
+              </Route>
+
               <Route path="menu-category" element={<MenuCategory />} >
                 <Route path="menu-item/:menuCategoryId" element={<MenuItemMain />} />
               </Route>

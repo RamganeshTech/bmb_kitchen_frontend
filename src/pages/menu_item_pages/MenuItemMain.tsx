@@ -166,14 +166,14 @@ const ItemsTable = ({ items, isLoading, errorMessage, onRetry, selectedId, onOpe
                             <Th className="hidden md:table-cell">Category</Th>
                             <Th className="text-right">Price</Th>
                             <Th className="hidden lg:table-cell">Prep time</Th>
-                            <Th className="hidden xl:table-cell">Options</Th>
-                            <Th className="w-10"><span className="sr-only">Open</span></Th>
+                            {/* <Th className="hidden xl:table-cell">Options</Th> */}
+                            <Th className="w-10">Open</Th>
                         </tr>
                     </THead>
                     <TBody>
                         {items.length === 0 ? (
                             <Tr>
-                                <Td colSpan={6} className="py-12 text-center">
+                                <Td colSpan={7} className="py-12 text-center">
                                     <div className="flex flex-col items-center text-muted">
                                         <UtensilsCrossed className="mb-3 h-10 w-10 opacity-50" />
                                         <p className="text-base font-medium text-body">{hasFilters ? 'No items match your filters' : inactive ? 'No inactive items' : 'No menu items yet'}</p>
@@ -211,15 +211,15 @@ const ItemsTable = ({ items, isLoading, errorMessage, onRetry, selectedId, onOpe
                                             </div>
                                         </div>
                                     </Td>
-                                    <Td className="hidden md:table-cell">{categoryNameOf(item, categoryNames)}</Td>
+                                    <Td className="hidden md:table-cell font-medium">{categoryNameOf(item, categoryNames)}</Td>
                                     <Td className="text-right font-medium tabular-nums text-heading">{formatPrice(item.basePrice)}</Td>
-                                    <Td className="hidden text-muted lg:table-cell">{item.prepTime ? `${item.prepTime} min` : '-'}</Td>
-                                    <Td className="hidden text-xs text-muted xl:table-cell">
+                                    <Td className="hidden text-muted lg:table-cell text-center font-medium">{item.prepTime ? `${item.prepTime} min` : '-'}</Td>
+                                    {/* <Td className="hidden text-xs text-muted xl:table-cell">
                                         {item.variants?.length ? `${item.variants.length} variant${item.variants.length > 1 ? 's' : ''}` : ''}
                                         {item.variants?.length && item.addOns?.length ? ' · ' : ''}
                                         {item.addOns?.length ? `${item.addOns.length} add-on${item.addOns.length > 1 ? 's' : ''}` : ''}
                                         {!item.variants?.length && !item.addOns?.length && '-'}
-                                    </Td>
+                                    </Td> */}
                                     <Td className="text-muted"><ChevronRight className="h-4 w-4" /></Td>
                                 </Tr>
                             ))

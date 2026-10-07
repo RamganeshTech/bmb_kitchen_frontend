@@ -63,6 +63,7 @@ export const baseManagementMenu: MenuItem[] = [
     { name: 'Menu Category', path: '/layout/menu-category', icon: Tags },
     { name: 'Menu Items', path: '/layout/menu-item', icon: Tags },
     { name: 'Payments', path: '/layout/payment', icon: CreditCard },
+    { name: 'Kitchen', path: '/layout/kitchen', icon: ChefHat },
     { name: 'Order', path: '/layout/order', icon: ClipboardList },
     { name: 'Tables', path: '/layout/tables', icon: LayoutGrid },
     { name: 'Inventory', path: '/layout/inventory', icon: Boxes },
@@ -78,6 +79,7 @@ export const baseManagementMenu: MenuItem[] = [
     { name: 'Printer', path: '/layout/printer', icon: Printer },
     { name: 'Integration', path: '/layout/integrations', icon: CreditCard },
     { name: 'Reports', path: '/layout/report', icon: CreditCard },
+    { name: 'Users', path: '/layout/users', icon: CreditCard },
     { name: 'Notification Settings', path: '/layout/notification-settings', icon: CreditCard },
     { name: 'Notifications', path: '/layout/notification', icon: CreditCard },
 ];

@@ -46,6 +46,7 @@ export interface UpdateItemKitchenStatusPayload {
 export interface ProcessOrderCheckoutPayload {
     orderId: string;
     paymentMethod: string;
+    offerId?: string 
     loyaltyPointsRedeemed?: number;
     manualDiscount?: number;
 }
@@ -257,6 +258,7 @@ export const useUpdateItemKitchenStatus = () => {
             queryClient.invalidateQueries({ queryKey: ['orders', 'detail', organizationId, orderId] });
             queryClient.invalidateQueries({ queryKey: ['orders', 'active', organizationId] });
             queryClient.invalidateQueries({ queryKey: ['orders', 'by-type', organizationId] });
+            queryClient.invalidateQueries({ queryKey: ['orders', 'kitchen', organizationId] });
         },
     });
 };
@@ -293,7 +295,63 @@ export const useProcessOrderCheckout = () => {
             queryClient.invalidateQueries({ queryKey: ['orders', 'active', organizationId] });
             queryClient.invalidateQueries({ queryKey: ['orders', 'by-type', organizationId] });
             queryClient.invalidateQueries({ queryKey: ['tables'] });
+            // queryClient.invalidateQueries({ queryKey: ['customers'] });
         },
+    });
+};
+
+
+
+export interface CheckoutPreview {
+    subTotal: number;
+    offerDiscount: number;
+    manualDiscount: number;
+    loyaltyDiscount: number;
+    totalDiscount: number;
+    serviceChargePercent: number;
+    serviceChargeAmount: number;
+    taxPercent: number;
+    taxAmount: number;
+    grandTotal: number;
+    maxRedeemablePoints: number;
+    pointsRedeemed: number;
+}
+
+// Route: GET /api/orders/v1/:organizationId/:id/checkout-preview
+export const useGetCheckoutPreview = (
+    orderId: string | undefined,
+    input: { offerId?: string; loyaltyPointsRedeemed?: number; manualDiscount?: number }
+) => {
+    const { currentRole, organizationId } = useAuthData();
+
+    return useQuery({
+        queryKey: ['orders', 'checkout-preview', organizationId, orderId, input.offerId ?? '', input.loyaltyPointsRedeemed ?? 0, input.manualDiscount ?? 0],
+        queryFn: async (): Promise<CheckoutPreview> => {
+            try {
+                checkPermission(currentRole, ORDER_READ_ROLES);
+                if (!organizationId) throw new Error('Organization ID is missing');
+                if (!orderId) throw new Error('Order ID is missing');
+
+                const { data } = await Api.get<BaseApiResponse<CheckoutPreview>>(
+                    `${BASE_ORDERS_URL}/${organizationId}/${orderId}/checkout-preview`,
+                    {
+                        params: {
+                            offerId: input.offerId || undefined,
+                            loyaltyPointsRedeemed: input.loyaltyPointsRedeemed || undefined,
+                            manualDiscount: input.manualDiscount || undefined,
+                        },
+                    }
+                );
+
+                if (data.ok && data.data) return data.data;
+                throw new Error(data.message || 'Failed to calculate the bill');
+            } catch (error: any) {
+                const errorMessage = error.response?.data?.message || error.message || 'An unexpected error occurred';
+                throw new Error(errorMessage, { cause: error });
+            }
+        },
+        enabled: !!organizationId && !!currentRole && !!orderId,
+        retry: false, // a 400 here is a validation message for the cashier, not a network problem
     });
 };
 

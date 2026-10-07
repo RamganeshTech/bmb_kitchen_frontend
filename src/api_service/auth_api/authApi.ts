@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query';
 import { Api } from '../../lib/api';
 import { type UserRole } from '../../features/slices/authSlice';
 import { queryClient } from '../../lib/queryClient';
@@ -211,6 +211,91 @@ export const useUpdateProfileImage = () => {
   });
 };
 
+
+
+export interface UpdateUserRolePayload {
+  userId: string;
+  role: string;
+}
+
+// --- Update User Role ---
+// Route: PATCH /api/auth/:userId/role
+export const useUpdateUserRole = () => {
+  const { currentRole } = useAuthData();
+
+  return useMutation({
+    mutationFn: async ({ userId, role }: UpdateUserRolePayload) => {
+      try {
+        checkPermission(currentRole, ['owner', 'admin', "cto"]);
+
+        const { data } = await Api.put<BaseApiResponse<UserData>>(
+          `/api/auth/v1/${userId}/role`,
+          { role }
+        );
+
+        if (data.ok) return data;
+        throw new Error(data.message || 'Failed to update user role');
+      } catch (error: any) {
+        const errorMessage =
+          error.response?.data?.message || error.message || 'An unexpected error occurred';
+        throw new Error(errorMessage, { cause: error });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['all-users'] });
+    },
+  });
+};
+
+
+export const USER_PERMISSION_MANAGE_ROLES: UserRole[] = ['owner', 'admin', 'cto'] as const;
+
+export interface ActionPermission {
+  create: boolean;
+  get: boolean;
+  update: boolean;
+  delete: boolean;
+}
+
+export type UserPermissionMap = Record<string, ActionPermission>;
+
+// ── Update a user's module permissions ──────────────────────────────────────
+// Route: PUT /api/auth/v1/:organizationId/:userId/permissions   (body: { permissions })
+// Allowed: owner, admin, cto
+export const useUpdateUserPermissions = () => {
+  const { currentRole, organizationId } = useAuthData();
+
+  return useMutation({
+    mutationFn: async ({ userId, permissions }: { userId: string; permissions: UserPermissionMap }) => {
+      try {
+        checkPermission(currentRole, USER_PERMISSION_MANAGE_ROLES);
+        if (!organizationId) throw new Error('Organization ID is missing');
+        if (!userId) throw new Error('User ID is required');
+
+        const { data } = await Api.put<BaseApiResponse>(
+          `/api/auth/v1/${organizationId}/${userId}/permissions`,
+          { permissions }
+        );
+
+        if (data.ok) return data;
+        throw new Error(data.message || 'Failed to update permissions');
+      } catch (error: any) {
+        const errorMessage = error.response?.data?.message || error.message || 'Saving permissions failed';
+        throw new Error(errorMessage, { cause: error });
+      }
+    },
+    // Patch the cached user directly so revisiting the page shows the saved values without a refetch
+    onSuccess: (_, { userId}) => {
+      // queryClient.setQueryData(['user', userId], (cached: any) =>
+      //   cached ? { ...cached, permissions } : cached
+      // );
+      queryClient.invalidateQueries({ queryKey: ['user', userId] })
+    },
+  });
+};
+
+
+
 // --- 6. Get Single User ---
 export const useGetSingleUser = (userId: string | undefined) => {
   const { currentRole } = useAuthData();
@@ -238,30 +323,54 @@ export const useGetSingleUser = (userId: string | undefined) => {
   });
 };
 
-// --- 7. Get All Users (Multi-tenant by organizationId) ---
-export const useGetAllUsers = ({
-  role,
-  organizationId,
-}: {
+
+
+export interface UserFilters {
+  email?: string;
+  phoneNo?: string;
+  userName?: string;
   role?: string;
+  isActive?: boolean;
+  limit?: number;
+}
+ 
+export interface UsersPage {
+  users: UserData[];
+  total: number;
+  page: number;
+  limit: number;
+}
+ 
+const USERS_PAGE_SIZE = 20;
+ 
+// --- 7. Get All Users (Multi-tenant, server-side filters, infinite scroll) ---
+// Route: GET /api/auth/?email&phoneNo&userName&role&isActive&page&limit
+export const useGetAllUsers = ({
+  organizationId,
+  filters = {},
+}: {
   organizationId: string;
+  filters?: UserFilters;
 }) => {
   const { currentRole } = useAuthData();
-
-  return useQuery({
-    queryKey: ['all-users', organizationId, role],
-    queryFn: async () => {
+  const { limit = USERS_PAGE_SIZE, ...searchFilters } = filters;
+ 
+  return useInfiniteQuery({
+    queryKey: ['all-users', organizationId, filters],
+    queryFn: async ({ pageParam }) => {
       try {
         checkPermission(currentRole, ['owner', 'cto', 'admin', 'staff']);
-
-        const { data } = await Api.get<BaseApiResponse<UserData[]>>(
-          `/api/auth/v1/org/${organizationId}`,
-          { params: { role } }
+ 
+        // Drop empty filters so they never reach the backend
+        const params = Object.fromEntries(
+          Object.entries({ ...searchFilters, page: pageParam, limit }).filter(
+            ([, value]) => value !== undefined && value !== ''
+          )
         );
-
-        if (data.ok) {
-          return data.data;
-        }
+ 
+        const { data } = await Api.get<BaseApiResponse<UsersPage>>('/api/auth/', { params });
+ 
+        if (data.ok && data.data) return data.data;
         throw new Error(data.message || 'Failed to fetch users');
       } catch (error: any) {
         const errorMessage =
@@ -269,6 +378,9 @@ export const useGetAllUsers = ({
         throw new Error(errorMessage, { cause: error });
       }
     },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) =>
+      lastPage.page * lastPage.limit < lastPage.total ? lastPage.page + 1 : undefined,
     enabled: !!organizationId,
   });
 };
@@ -282,7 +394,7 @@ export const useDeleteUser = () => {
       try {
         checkPermission(currentRole, ['owner', 'admin']);
 
-        const { data } = await Api.delete<BaseApiResponse>(`/api/auth/v1/delete/${userId}`);
+        const { data } = await Api.delete<BaseApiResponse>(`/api/auth/v1/${userId}/delete`);
 
         if (data.ok) {
           return data;
@@ -328,6 +440,67 @@ export const useResetPassword = () => {
           error.response?.data?.message || error.message || 'An unexpected error occurred';
         throw new Error(errorMessage);
       }
+    },
+  });
+};
+
+
+
+
+// --- Soft Delete User (Deactivate) ---
+// Route: PATCH /api/auth/:userId/deactivate
+export const useSoftDeleteUser = () => {
+  const { currentRole } = useAuthData();
+
+  return useMutation({
+    mutationFn: async (userId: string) => {
+      try {
+        checkPermission(currentRole, ['owner', 'admin']);
+
+        const { data } = await Api.patch<BaseApiResponse>(
+          `/api/auth/v1/${userId}/deactivate`
+        );
+
+        if (data.ok) return data;
+        throw new Error(data.message || 'Failed to deactivate user');
+      } catch (error: any) {
+        const errorMessage =
+          error.response?.data?.message || error.message || 'An unexpected error occurred';
+        throw new Error(errorMessage, { cause: error });
+      }
+    },
+    onSuccess: () => {
+      // Refetches all user lists (both active and inactive lists update automatically)
+      queryClient.invalidateQueries({ queryKey: ['all-users'] });
+    },
+  });
+};
+
+// --- Recover User (Reactivate) ---
+// Route: PATCH /api/auth/:userId/recover
+export const useRecoverUser = () => {
+  const { currentRole } = useAuthData();
+
+  return useMutation({
+    mutationFn: async (userId: string) => {
+      try {
+        checkPermission(currentRole, ['owner', 'admin']);
+
+        const { data } = await Api.patch<BaseApiResponse>(
+          `/api/auth/v1/${userId}/recover`
+        );
+
+        if (data.ok) return data;
+        throw new Error(data.message || 'Failed to recover user');
+      } catch (error: any) {
+        const errorMessage =
+          error.response?.data?.message || error.message || 'An unexpected error occurred';
+        throw new Error(errorMessage, { cause: error });
+      }
+    },
+    onSuccess: () => {
+      // Refetches all user lists
+      queryClient.invalidateQueries({ queryKey: ['all-users'] });
     },
   });
 };

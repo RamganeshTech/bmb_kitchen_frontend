@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import {
+    ArrowLeft,
     Ban,
     ChefHat,
+    ChevronDown,
     ClipboardList,
     Minus,
     Plus,
     Receipt,
+    ReceiptIndianRupee,
     Search,
     ShoppingCart,
     Trash2,
@@ -26,6 +29,7 @@ import {
     useAddItemsToExistingOrder,
     useCancelOrder,
     useGetActiveOrders,
+    useGetCheckoutPreview,
     useGetOrderById,
     usePlaceNewOrder,
     useProcessOrderCheckout,
@@ -37,9 +41,10 @@ import {
 import { useGetActiveMenuItems } from '../../api_service/menuItem_api/menuItemApi';
 import { useGetMenuCategoryDropdown } from '../../api_service/menuCategory_api/menuCategoryApi';
 import { useGetOutletDropdown } from '../../api_service/outlet_api/outletApi';
-import { useGetCustomerDropdown } from '../../api_service/customer_api/customerApi';
+import { useGetCustomerById, useGetCustomerDropdown } from '../../api_service/customer_api/customerApi';
 import useDebounce from '../../hooks/useDebounce';
 import { useGetActiveTables } from '../../api_service/restauranttable_api/restaurantTableApi';
+import { useGetOfferDropdown } from '../../api_service/offer_api/offerApi';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 type ApiRecord = Record<string, any>;
@@ -84,6 +89,7 @@ interface CartLine {
 
 interface CheckoutValues {
     paymentMethod: PaymentMethodChoice;
+    offerId: string;
     loyaltyPointsRedeemed: number;
     manualDiscount: number;
 }
@@ -423,26 +429,54 @@ const ItemOptionsForm = ({
 };
 
 const CheckoutForm = ({
-    grandTotal,
-    hasCustomer,
+    orderId,
+    customerId,
     isSubmitting,
     onCancel,
     onSubmit,
 }: {
-    grandTotal: number;
-    hasCustomer: boolean;
+    orderId: string;
+    customerId?: string;
     isSubmitting: boolean;
     onCancel: () => void;
     onSubmit: (values: CheckoutValues) => void;
 }) => {
     const [paymentMethod, setPaymentMethod] = useState<PaymentMethodChoice>('cash');
+    const [offerId, setOfferId] = useState('');
     const [loyaltyPoints, setLoyaltyPoints] = useState('');
     const [manualDiscount, setManualDiscount] = useState('');
 
+    // The preview waits for the cashier to stop typing
+    const debouncedPoints = useDebounce(loyaltyPoints, 400);
+    const debouncedManual = useDebounce(manualDiscount, 400);
+
+    const { data: customer } = useGetCustomerById(customerId);
+    const { data: offerData } = useGetOfferDropdown();
+    const offerOptions = toArray(offerData, 'offers').map((offer) => ({
+        label: offer.code ? `${offer.title} (${offer.code})` : offer.title,
+        value: String(offer._id),
+    }));
+
+    const {
+        data: preview,
+        error: previewError,
+        isFetching: isPreviewing,
+    } = useGetCheckoutPreview(orderId, {
+        offerId: offerId || undefined,
+        loyaltyPointsRedeemed: Number(debouncedPoints) || 0,
+        manualDiscount: Number(debouncedManual) || 0,
+    });
+
+    const availablePoints = customer?.loyaltyPoints ?? 0;
+    const isStale = loyaltyPoints !== debouncedPoints || manualDiscount !== debouncedManual;
+    const canConfirm = !!preview && !previewError && !isStale && !isPreviewing;
+
     const handleSubmit = (event: React.FormEvent) => {
         event.preventDefault();
+        if (!canConfirm) return;
         onSubmit({
             paymentMethod,
+            offerId,
             loyaltyPointsRedeemed: Number(loyaltyPoints) || 0,
             manualDiscount: Number(manualDiscount) || 0,
         });
@@ -450,9 +484,37 @@ const CheckoutForm = ({
 
     return (
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-            <div className="rounded-xl bg-primary-soft p-4">
-                <p className="text-sm text-primary-text">Bill total before discounts</p>
-                <p className="text-3xl font-semibold text-heading">{formatCurrency(grandTotal)}</p>
+            {/* <div className="rounded-xl bg-primary p-4">
+                <p className="text-sm text-primary-text">Amount to pay</p>
+                <p className="text-3xl font-semibold text-primary-text">{preview ? formatCurrency(preview.grandTotal) : '—'}</p>
+            </div> */}
+
+            <div className="rounded-2xl bg-primary p-5 text-white">
+                <div className="flex items-start justify-between gap-3">
+                    <div>
+                        <p className="text-sm font-medium opacity-90">Amount to pay</p>
+                        <p
+                            className={`mt-1 text-4xl font-semibold tracking-tight transition-opacity ${isPreviewing ? 'opacity-60' : ''
+                                }`}
+                        >
+                            {preview ? formatCurrency(preview.grandTotal) : '—'}
+                        </p>
+                    </div>
+                    {preview && preview.totalDiscount > 0 && (
+                        <span className="shrink-0 rounded-full bg-white/20 px-3 py-1 text-xs font-medium">
+                            Discount {formatCurrency(preview.totalDiscount)}
+                        </span>
+                    )}
+                </div>
+
+                {preview && (
+                    <p className="mt-4 border-t border-white/25 pt-3 text-xs opacity-90">
+                        Bill {formatCurrency(preview.subTotal)}
+                        {preview.totalDiscount > 0 && ` − ${formatCurrency(preview.totalDiscount)} discount`}
+                        {preview.serviceChargeAmount > 0 && ` + ${formatCurrency(preview.serviceChargeAmount)} service charge`}
+                        {` + ${formatCurrency(preview.taxAmount)} tax`}
+                    </p>
+                )}
             </div>
 
             <div className="flex flex-col gap-2">
@@ -461,6 +523,7 @@ const CheckoutForm = ({
                     {PAYMENT_OPTIONS.map((option) => (
                         <Button
                             key={option.value}
+                            type="button"
                             variant={paymentMethod === option.value ? 'primary' : 'outline'}
                             onClick={() => setPaymentMethod(option.value)}
                         >
@@ -469,6 +532,15 @@ const CheckoutForm = ({
                     ))}
                 </div>
             </div>
+
+            <SearchSelect
+                label="Offer (optional)"
+                options={offerOptions}
+                value={offerId}
+                placeholder="No offer"
+                onChange={(option) => setOfferId(String(option.value))}
+                onClear={() => setOfferId('')}
+            />
 
             <div className="flex flex-col gap-1.5">
                 <Label htmlFor="manual-discount">Manual discount (₹)</Label>
@@ -482,31 +554,205 @@ const CheckoutForm = ({
                 />
             </div>
 
-            {hasCustomer && (
+            {customerId && (
                 <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="loyalty-points">Loyalty points to redeem</Label>
-                    <Input
-                        id="loyalty-points"
-                        type="number"
-                        min={0}
-                        value={loyaltyPoints}
-                        onChange={(event) => setLoyaltyPoints(event.target.value)}
-                        placeholder="0"
-                    />
+                    <div className="flex items-center justify-between">
+                        <Label htmlFor="loyalty-points">Redeem loyalty points</Label>
+                        <span className="text-sm text-muted">
+                            {customer ? `${customer.name} · ${availablePoints} points available` : 'Loading points...'}
+                        </span>
+                    </div>
+                    <div className="flex gap-2">
+                        <Input
+                            id="loyalty-points"
+                            type="number"
+                            min={0}
+                            value={loyaltyPoints}
+                            onChange={(event) => setLoyaltyPoints(event.target.value)}
+                            placeholder="0"
+                        />
+                        <Button
+                            type="button"
+                            variant="outline"
+                            disabled={!preview || preview.maxRedeemablePoints <= 0}
+                            onClick={() => setLoyaltyPoints(String(preview?.maxRedeemablePoints ?? 0))}
+                        >
+                            Use max
+                        </Button>
+                    </div>
+                    {preview && availablePoints > 0 && preview.maxRedeemablePoints === 0 && (
+                        <p className="text-xs text-muted">Points can't be redeemed on this bill yet.</p>
+                    )}
                 </div>
+            )}
+
+            {previewError && <p className="text-sm text-danger">{getErrorMessage(previewError, 'Could not calculate the bill')}</p>}
+
+            {preview && (
+                <dl className="space-y-1 border-t border-border pt-4 text-sm">
+                    <div className="flex justify-between text-body">
+                        <dt>Sub total</dt>
+                        <dd>{formatCurrency(preview.subTotal)}</dd>
+                    </div>
+                    {preview.offerDiscount > 0 && (
+                        <div className="flex justify-between text-body">
+                            <dt>Offer</dt>
+                            <dd>− {formatCurrency(preview.offerDiscount)}</dd>
+                        </div>
+                    )}
+                    {preview.manualDiscount > 0 && (
+                        <div className="flex justify-between text-body">
+                            <dt>Manual discount</dt>
+                            <dd>− {formatCurrency(preview.manualDiscount)}</dd>
+                        </div>
+                    )}
+                    {preview.loyaltyDiscount > 0 && (
+                        <div className="flex justify-between text-body">
+                            <dt>Points ({preview.pointsRedeemed})</dt>
+                            <dd>− {formatCurrency(preview.loyaltyDiscount)}</dd>
+                        </div>
+                    )}
+                    {preview.serviceChargeAmount > 0 && (
+                        <div className="flex justify-between text-body">
+                            <dt>Service charge</dt>
+                            <dd>{formatCurrency(preview.serviceChargeAmount)}</dd>
+                        </div>
+                    )}
+                    <div className="flex justify-between text-body">
+                        <dt>Tax</dt>
+                        <dd>{formatCurrency(preview.taxAmount)}</dd>
+                    </div>
+                    <div className="flex justify-between text-base font-semibold text-heading">
+                        <dt>Total</dt>
+                        <dd>{formatCurrency(preview.grandTotal)}</dd>
+                    </div>
+                </dl>
             )}
 
             <div className="flex justify-end gap-2 border-t border-border pt-5">
                 <Button type="button" variant="outline" onClick={onCancel}>
                     Cancel
                 </Button>
-                <Button type="submit" isLoading={isSubmitting} loadingText="Processing...">
+                <Button type="submit" disabled={!canConfirm} isLoading={isSubmitting} loadingText="Processing...">
                     Confirm payment
                 </Button>
             </div>
         </form>
     );
 };
+
+
+const OrdersList = ({
+    orders,
+    isLoading,
+    typeFilter,
+    onTypeFilterChange,
+    canCancel,
+    onCheckout,
+    onAddItems,
+    onCancel,
+}: {
+    orders: ApiRecord[];
+    isLoading: boolean;
+    typeFilter: string;
+    onTypeFilterChange: (value: string) => void;
+    canCancel: boolean;
+    onCheckout: (order: ApiRecord) => void;
+    onAddItems: (order: ApiRecord) => void;
+    onCancel: (order: ApiRecord) => void;
+}) => (
+    <section className="flex min-h-0 flex-1 flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold text-heading">
+                Unpaid orders <span className="text-muted">({orders.length})</span>
+            </h2>
+            <div className="flex gap-1">
+                {[{ value: 'all', label: 'All' }, ...ORDER_TYPE_OPTIONS].map((option) => (
+                    <Button
+                        key={option.value}
+                        size="sm"
+                        variant={typeFilter === option.value ? 'primary' : 'ghost'}
+                        onClick={() => onTypeFilterChange(option.value)}
+                    >
+                        {option.label}
+                    </Button>
+                ))}
+            </div>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto">
+            {isLoading ? (
+                <p className="py-16 text-center text-sm text-muted">Loading orders...</p>
+            ) : orders.length === 0 ? (
+                <p className="py-16 text-center text-sm text-muted">
+                    No unpaid orders. Orders appear here as soon as they are sent to the kitchen.
+                </p>
+            ) : (
+                <div className="grid grid-cols-1 gap-3 pb-4 md:grid-cols-2 xl:grid-cols-3">
+                    {orders.map((order) => (
+                        <article key={order._id} className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4">
+                            <header className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                    <p className="text-base font-semibold text-heading">{order.orderNo}</p>
+                                    <p className="truncate text-sm text-muted">
+                                        {order.tableId ? getTableLabel(order.tableId) : 'No table'} · placed{' '}
+                                        {new Date(order.createdAt).toLocaleTimeString('en-IN', {
+                                            hour: '2-digit',
+                                            minute: '2-digit',
+                                        })}
+                                    </p>
+                                </div>
+                                <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-white">
+                                    {ORDER_TYPE_LABELS[order.orderType] ?? order.orderType}
+                                </span>
+                            </header>
+
+                            <ul className="divide-y divide-border rounded-lg border border-border">
+                                {(order.items ?? []).map((item: ApiRecord) => (
+                                    <li key={item._id} className="flex items-center justify-between gap-2 px-3 py-2">
+                                        <span
+                                            className={`text-sm text-heading ${item.status === 'cancelled' ? 'line-through opacity-60' : ''
+                                                }`}
+                                        >
+                                            {item.quantity} × {item.name}
+                                        </span>
+                                        <KitchenStatusBadge status={item.status as KitchenItemStatus} />
+                                    </li>
+                                ))}
+                            </ul>
+
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-muted">
+                                    {order.paymentStatus === 'partially_paid' ? 'Partially paid' : 'Total'}
+                                </span>
+                                <span className="text-lg font-semibold text-heading">{formatCurrency(order.grandTotal)}</span>
+                            </div>
+
+                            <div className="mt-auto grid grid-cols-2 gap-2">
+                                <Button leftIcon={<Receipt size={16} />} onClick={() => onCheckout(order)}>
+                                    Checkout
+                                </Button>
+                                <Button variant="outline" leftIcon={<Plus size={16} />} onClick={() => onAddItems(order)}>
+                                    Add items
+                                </Button>
+                                {canCancel && (
+                                    <Button
+                                        className="col-span-2"
+                                        variant="danger"
+                                        leftIcon={<Ban size={16} />}
+                                        onClick={() => onCancel(order)}
+                                    >
+                                        Cancel order
+                                    </Button>
+                                )}
+                            </div>
+                        </article>
+                    ))}
+                </div>
+            )}
+        </div>
+    </section>
+);
 
 // ── Main screen ─────────────────────────────────────────────────────────────
 const OrderMain = () => {
@@ -612,6 +858,25 @@ const OrderMain = () => {
     const [isPanelOpenOnMobile, setIsPanelOpenOnMobile] = useState(false);
     const [runningTypeFilter, setRunningTypeFilter] = useState<'all' | string>('all');
 
+    const [isOrdersView, setIsOrdersView] = useState(false);
+    const [isRunningOpen, setIsRunningOpen] = useState(false); // collapsed by default
+
+    const openCheckoutFor = (order: ApiRecord) => {
+        setSelectedOrderId(String(order._id));
+        setIsCheckoutOpen(true);
+    };
+
+    const openCancelFor = (order: ApiRecord) => {
+        setSelectedOrderId(String(order._id));
+        setIsCancelOpen(true);
+    };
+
+    // Jump back to the menu with this order selected, to add more items
+    const openOrderInMenu = (order: ApiRecord) => {
+        setSelectedOrderId(String(order._id));
+        setIsOrdersView(false);
+    };
+
     const visibleRunningOrders =
         runningTypeFilter === 'all' ? runningOrders : runningOrders.filter((order) => order.orderType === runningTypeFilter);
 
@@ -714,11 +979,14 @@ const OrderMain = () => {
             await checkoutAsync({
                 orderId: selectedOrderId,
                 paymentMethod: values.paymentMethod,
+                offerId: values.offerId || undefined,
                 loyaltyPointsRedeemed: values.loyaltyPointsRedeemed > 0 ? values.loyaltyPointsRedeemed : undefined,
                 manualDiscount: values.manualDiscount > 0 ? values.manualDiscount : undefined,
             });
+
             toast.success('Payment received. Order completed');
             setIsCheckoutOpen(false);
+            if (isOrdersView) setSelectedOrderId(null);
         } catch (error) {
             toast.error(getErrorMessage(error, 'Failed to process payment'));
         }
@@ -1018,7 +1286,7 @@ const OrderMain = () => {
                         <p className="text-sm text-muted">Take orders, add items before payment, and settle the bill.</p>
                     </div>
                 </div>
-                <div className="w-full sm:w-64">
+                {/* <div className="w-full sm:w-64">
                     <SearchSelect
                         label="Outlet"
                         options={outletOptions}
@@ -1030,142 +1298,287 @@ const OrderMain = () => {
                         }}
                         onClear={() => setSelectedOutletId('')}
                     />
+                </div> */}
+
+                <div className="flex w-full items-end gap-2 sm:w-auto">
+                    <Button
+                        variant={isOrdersView ? 'primary' : 'outline'}
+                        leftIcon={isOrdersView ? <ArrowLeft size={16} /> : <ReceiptIndianRupee size={16} />}
+                        onClick={() => setIsOrdersView((current) => !current)}
+                    >
+                        {isOrdersView ? 'Back to menu' : `Orders (${runningOrders.length})`}
+                    </Button>
+                    <div className="w-full sm:w-64">
+                        <SearchSelect
+                            label="Outlet"
+                            options={outletOptions}
+                            value={outletId}
+                            placeholder="Select outlet"
+                            onChange={(option) => {
+                                setSelectedOutletId(String(option.value));
+                                setSelectedOrderId(null);
+                            }}
+                            onClear={() => setSelectedOutletId('')}
+                        />
+                    </div>
                 </div>
             </div>
 
-            <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_400px]">
-                {/* Left: running orders + menu */}
-                <section className="flex min-h-0 min-w-0 flex-col gap-4">
-                    {/* Running orders strip */}
-                    <div className="rounded-xl border border-border bg-surface p-3">
-                        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                            <h2 className="text-base font-semibold text-heading">
-                                Running orders <span className="text-muted">({runningOrders.length})</span>
-                            </h2>
-                            <div className="flex gap-1">
-                                {[{ value: 'all', label: 'All' }, ...ORDER_TYPE_OPTIONS].map((option) => (
-                                    <Button
-                                        key={option.value}
-                                        size="sm"
-                                        variant={runningTypeFilter === option.value ? 'primary' : 'ghost'}
-                                        onClick={() => setRunningTypeFilter(option.value)}
-                                    >
-                                        {option.label}
-                                    </Button>
-                                ))}
-                            </div>
-                        </div>
-                        <div className="flex gap-2 overflow-x-auto pb-1">
-                            {isOrdersLoading && <p className="px-2 py-3 text-sm text-muted">Loading orders...</p>}
-                            {!isOrdersLoading && visibleRunningOrders.length === 0 && (
-                                <p className="px-2 py-3 text-sm text-muted">No running orders. Start one from the menu below.</p>
-                            )}
-                            {visibleRunningOrders.map((order) => {
-                                const isSelected = order._id === selectedOrderId;
-                                return (
-                                    <div
-                                        key={order._id}
-                                        role="button"
-                                        tabIndex={0}
-                                        aria-pressed={isSelected}
-                                        onClick={() => setSelectedOrderId(order._id)}
-                                        onKeyDown={(event) => {
-                                            if (event.key === 'Enter' || event.key === ' ') {
-                                                event.preventDefault();
-                                                setSelectedOrderId(order._id);
-                                            }
-                                        }}
-                                        className={`flex w-44 shrink-0 cursor-pointer flex-col gap-1 rounded-lg border px-3 py-2 transition-colors ${isSelected
-                                            ? 'border-primary bg-primary-soft'
-                                            : 'border-border hover:bg-surface-hover'
-                                            }`}
-                                    >
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-sm font-semibold text-heading">{order.orderNo}</span>
-                                            <span className="rounded-full bg-primary px-2 py-0.5 text-xs text-white">
-                                                {ORDER_TYPE_LABELS[order.orderType] ?? order.orderType}
-                                            </span>
-                                        </div>
-                                        <p className="truncate text-xs text-muted">
-                                            {order.tableId ? getTableLabel(order.tableId) : 'No table'} · {order.items?.length ?? 0} items
-                                        </p>
-                                        <p className="text-sm font-semibold text-heading">{formatCurrency(order.grandTotal)}</p>
+            {isOrdersView ? (
+                <OrdersList
+                    orders={visibleRunningOrders}
+                    isLoading={isOrdersLoading}
+                    typeFilter={runningTypeFilter}
+                    onTypeFilterChange={setRunningTypeFilter}
+                    canCancel={canCancelOrders}
+                    onCheckout={openCheckoutFor}
+                    onAddItems={openOrderInMenu}
+                    onCancel={openCancelFor}
+                />
+            ) : (
+                <>
+                    <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_400px]">
+                        {/* Left: running orders + menu */}
+                        <section className="flex min-h-0 min-w-0 flex-col gap-4">
+                            {/* Running orders strip */}
+                            {/* <div className="rounded-xl border border-border bg-surface p-3">
+                                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                                    <h2 className="text-base font-semibold text-heading">
+                                        Running orders <span className="text-muted">({runningOrders.length})</span>
+                                    </h2>
+                                    <div className="flex gap-1">
+                                        {[{ value: 'all', label: 'All' }, ...ORDER_TYPE_OPTIONS].map((option) => (
+                                            <Button
+                                                key={option.value}
+                                                size="sm"
+                                                variant={runningTypeFilter === option.value ? 'primary' : 'ghost'}
+                                                onClick={() => setRunningTypeFilter(option.value)}
+                                            >
+                                                {option.label}
+                                            </Button>
+                                        ))}
                                     </div>
-                                );
-                            })}
-                        </div>
-                    </div>
+                                </div>
+                                <div className="flex gap-2 overflow-x-auto pb-1">
+                                    {isOrdersLoading && <p className="px-2 py-3 text-sm text-muted">Loading orders...</p>}
+                                    {!isOrdersLoading && visibleRunningOrders.length === 0 && (
+                                        <p className="px-2 py-3 text-sm text-muted">No running orders. Start one from the menu below.</p>
+                                    )}
+                                    {visibleRunningOrders.map((order) => {
+                                        const isSelected = order._id === selectedOrderId;
+                                        return (
+                                            <div
+                                                key={order._id}
+                                                role="button"
+                                                tabIndex={0}
+                                                aria-pressed={isSelected}
+                                                onClick={() => setSelectedOrderId(order._id)}
+                                                onKeyDown={(event) => {
+                                                    if (event.key === 'Enter' || event.key === ' ') {
+                                                        event.preventDefault();
+                                                        setSelectedOrderId(order._id);
+                                                    }
+                                                }}
+                                                className={`flex w-44 shrink-0 cursor-pointer flex-col gap-1 rounded-lg border px-3 py-2 transition-colors ${isSelected
+                                                    ? 'border-primary bg-primary-soft'
+                                                    : 'border-border hover:bg-surface-hover'
+                                                    }`}
+                                            >
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-sm font-semibold text-heading">{order.orderNo}</span>
+                                                    <span className="rounded-full bg-primary px-2 py-0.5 text-xs text-white">
+                                                        {ORDER_TYPE_LABELS[order.orderType] ?? order.orderType}
+                                                    </span>
+                                                </div>
+                                                <p className="truncate text-xs text-muted">
+                                                    {order.tableId ? getTableLabel(order.tableId) : 'No table'} · {order.items?.length ?? 0} items
+                                                </p>
+                                                <p className="text-sm font-semibold text-heading">{formatCurrency(order.grandTotal)}</p>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div> */}
 
-                    {/* Menu */}
-                    <div className="flex min-h-0 flex-1 flex-col gap-3">
-                        <div className="flex flex-wrap items-center gap-3">
-                            <div className="relative min-w-52 flex-1">
-                                <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-                                <Input
-                                    className="pl-9"
-                                    value={searchText}
-                                    onChange={(event) => setSearchText(event.target.value)}
-                                    placeholder="Search menu items"
-                                    aria-label="Search menu items"
-                                />
-                            </div>
-                        </div>
-                        <div className="flex gap-2 overflow-x-auto pb-1">
-                            <Button
-                                size="sm"
-                                variant={categoryId === '' ? 'primary' : 'outline'}
-                                onClick={() => setCategoryId('')}
-                            >
-                                All
-                            </Button>
-                            {categories.map((category) => (
-                                <Button
-                                    key={category._id}
-                                    size="sm"
-                                    variant={categoryId === String(category._id) ? 'primary' : 'outline'}
-                                    onClick={() => setCategoryId(String(category._id))}
+
+                            <div className="rounded-xl border-2 border-border bg-surface">
+                                <div
+                                    role="button"
+                                    tabIndex={0}
+                                    aria-expanded={isRunningOpen}
+                                    onClick={() => setIsRunningOpen((current) => !current)}
+                                    onKeyDown={(event) => {
+                                        // ignore keys pressed on the filter buttons inside; only toggle when the header itself has focus
+                                        if (event.target !== event.currentTarget) return;
+                                        if (event.key === 'Enter' || event.key === ' ') {
+                                            event.preventDefault();
+                                            setIsRunningOpen((current) => !current);
+                                        }
+                                    }}
+                                    className="flex w-full cursor-pointer flex-wrap items-center justify-between gap-2 px-3 py-2"
                                 >
-                                    {category.name}
-                                </Button>
-                            ))}
-                        </div>
+                                    <h2 className="text-sm font-semibold text-heading">
+                                        Running orders <span className="text-muted">({runningOrders.length})</span>
+                                    </h2>
 
-                        <div className="min-h-0 flex-1 overflow-y-auto">
-                            {isMenuLoading ? (
-                                <p className="py-16 text-center text-sm text-muted">Loading menu...</p>
-                            ) : menuItems.length === 0 ? (
-                                <p className="py-16 text-center text-sm text-muted">
-                                    No menu items found. Try a different search or category.
-                                </p>
-                            ) : (
-                                <div className="grid grid-cols-2 gap-3 pb-20 md:grid-cols-3 xl:grid-cols-4 lg:pb-2">
-                                    {menuItems.map((item) => (
-                                        <MenuItemCard
-                                            key={item.id}
-                                            item={item}
-                                            quantityInDraft={quantityInDraftByMenuItem[item.id] ?? 0}
-                                            onSelect={handleSelectMenuItem}
+                                    <div className="flex items-center gap-2">
+                                        {isRunningOpen && (
+                                            <div
+                                                className="flex gap-1"
+                                                onClick={(event) => event.stopPropagation()}
+                                                onKeyDown={(event) => event.stopPropagation()}
+                                            >
+                                                {[{ value: 'all', label: 'All' }, ...ORDER_TYPE_OPTIONS].map((option) => (
+                                                    <Button
+                                                        key={option.value}
+                                                        size="sm"
+                                                        variant={runningTypeFilter === option.value ? 'primary' : 'ghost'}
+                                                        onClick={() => setRunningTypeFilter(option.value)}
+                                                    >
+                                                        {option.label}
+                                                    </Button>
+                                                ))}
+                                            </div>
+                                        )}
+                                        <ChevronDown
+                                            size={18}
+                                            className={`shrink-0 text-muted transition-transform ${isRunningOpen ? 'rotate-180' : ''}`}
                                         />
+                                    </div>
+                                </div>
+
+                                {isRunningOpen && (
+                                    <div className="border-t-2 border-border p-3">
+                                        {/* <div className="mb-2 flex gap-1">
+                                            {[{ value: 'all', label: 'All' }, ...ORDER_TYPE_OPTIONS].map((option) => (
+                                                <Button
+                                                    key={option.value}
+                                                    size="sm"
+                                                    variant={runningTypeFilter === option.value ? 'primary' : 'ghost'}
+                                                    onClick={() => setRunningTypeFilter(option.value)}
+                                                >
+                                                    {option.label}
+                                                </Button>
+                                            ))}
+                                        </div> */}
+
+                                        <div className="flex gap-2 overflow-x-auto pb-1">
+                                            {isOrdersLoading && <p className="px-2 py-2 text-xs text-muted">Loading orders...</p>}
+                                            {!isOrdersLoading && visibleRunningOrders.length === 0 && (
+                                                <p className="px-2 py-2 text-sm text-muted mx-auto font-medium">No running orders. Start one from the menu below.</p>
+                                            )}
+                                            {visibleRunningOrders?.map((order) => {
+                                                const isSelected = order._id === selectedOrderId;
+                                                return (
+                                                    <div
+                                                        key={order._id}
+                                                        role="button"
+                                                        tabIndex={0}
+                                                        aria-pressed={isSelected}
+                                                        onClick={() => setSelectedOrderId(order._id)}
+                                                        onKeyDown={(event) => {
+                                                            if (event.key === 'Enter' || event.key === ' ') {
+                                                                event.preventDefault();
+                                                                setSelectedOrderId(order._id);
+                                                            }
+                                                        }}
+                                                        className={`flex w-40 shrink-0 cursor-pointer flex-col gap-0.5 rounded-lg border px-2.5 py-1.5 transition-colors ${isSelected ? 'border-primary bg-primary-soft' : 'border-border hover:bg-surface-hover'
+                                                            }`}
+                                                    >
+                                                        <div className="flex items-center justify-between gap-1">
+                                                            <span className="text-xs font-semibold text-heading">{order.orderNo}</span>
+                                                            <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] text-white">
+                                                                {ORDER_TYPE_LABELS[order.orderType] ?? order.orderType}
+                                                            </span>
+                                                        </div>
+                                                        <p className="truncate text-[11px] text-muted">
+                                                            {order.tableId ? getTableLabel(order.tableId) : 'No table'} · {order.items?.length ?? 0} items
+                                                        </p>
+                                                        <p className="text-xs font-semibold text-heading">{formatCurrency(order.grandTotal)}</p>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Menu */}
+                            <div className="flex min-h-0 flex-1 flex-col gap-3">
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <div className="relative min-w-52 flex-1">
+                                        <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+                                        <Input
+                                            className="pl-9"
+                                            value={searchText}
+                                            onChange={(event) => setSearchText(event.target.value)}
+                                            placeholder="Search menu items"
+                                            aria-label="Search menu items"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex gap-2 overflow-x-auto pb-1">
+                                    <Button
+                                        size="sm"
+                                        variant={categoryId === '' ? 'primary' : 'outline'}
+                                        onClick={() => setCategoryId('')}
+                                    >
+                                        All
+                                    </Button>
+                                    {categories.map((category) => (
+                                        <Button
+                                            key={category._id}
+                                            size="sm"
+                                            variant={categoryId === String(category._id) ? 'primary' : 'outline'}
+                                            onClick={() => setCategoryId(String(category._id))}
+                                        >
+                                            {category.name}
+                                        </Button>
                                     ))}
                                 </div>
-                            )}
-                        </div>
+
+                                <div className="min-h-0 flex-1 overflow-y-auto">
+                                    {isMenuLoading ? (
+                                        <p className="py-16 text-center text-sm text-muted">Loading menu...</p>
+                                    ) : menuItems.length === 0 ? (
+                                        <p className="py-16 text-center text-sm text-muted">
+                                            No menu items found. Try a different search or category.
+                                        </p>
+                                    ) : (
+                                        <div className="grid grid-cols-2 gap-3 pb-20 md:grid-cols-3 xl:grid-cols-4 lg:pb-2">
+                                            {menuItems.map((item) => (
+                                                <MenuItemCard
+                                                    key={item.id}
+                                                    item={item}
+                                                    quantityInDraft={quantityInDraftByMenuItem[item.id] ?? 0}
+                                                    onSelect={handleSelectMenuItem}
+                                                />
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* Right: order panel (desktop) */}
+                        <aside className="hidden min-h-0 overflow-hidden rounded-xl border border-border bg-surface lg:block">
+                            {orderPanel}
+                        </aside>
                     </div>
-                </section>
 
-                {/* Right: order panel (desktop) */}
-                <aside className="hidden min-h-0 overflow-hidden rounded-xl border border-border bg-surface lg:block">
-                    {orderPanel}
-                </aside>
-            </div>
 
-            {/* Mobile: floating order bar + panel modal */}
-            <div className="sticky bottom-2 z-10 lg:hidden">
-                <Button fullWidth size="lg" leftIcon={<ShoppingCart size={18} />} onClick={() => setIsPanelOpenOnMobile(true)}>
-                    {selectedOrderId ? (activeOrder?.orderNo ?? 'Order') : 'New order'}
-                    {draftQuantity > 0 ? ` · ${draftQuantity} items · ${formatCurrency(draftSubTotal)}` : ''}
-                </Button>
-            </div>
+                    {/* Mobile: floating order bar + panel modal */}
+                    <div className="sticky bottom-2 z-10 lg:hidden">
+                        <Button fullWidth size="lg" leftIcon={<ShoppingCart size={18} />} onClick={() => setIsPanelOpenOnMobile(true)}>
+                            {selectedOrderId ? (activeOrder?.orderNo ?? 'Order') : 'New order'}
+                            {draftQuantity > 0 ? ` · ${draftQuantity} items · ${formatCurrency(draftSubTotal)}` : ''}
+                        </Button>
+                    </div>
+
+                    {/* ...your existing mobile "sticky bottom-2" order bar, unchanged... */}
+                </>
+            )}
+
             <SideModal
                 isOpen={isPanelOpenOnMobile}
                 onClose={() => setIsPanelOpenOnMobile(false)}
@@ -1190,8 +1603,9 @@ const OrderMain = () => {
             <SideModal isOpen={isCheckoutOpen} onClose={() => setIsCheckoutOpen(false)} title="Checkout">
                 {activeOrder && (
                     <CheckoutForm
-                        grandTotal={activeOrder.grandTotal}
-                        hasCustomer={!!activeOrder.customerId}
+                        key={activeOrder._id}
+                        orderId={activeOrder._id}
+                        customerId={activeOrder.customerId ? String(activeOrder.customerId._id ?? activeOrder.customerId) : undefined}
                         isSubmitting={isCheckingOut}
                         onCancel={() => setIsCheckoutOpen(false)}
                         onSubmit={handleCheckout}
