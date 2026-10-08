@@ -15,13 +15,15 @@ import { Label } from '../../components/ui/Label';
 // import { Dropdown } from '../../components/ui/Dropdown';
 import { useAuthData } from '../../hooks/useAuthData';
 import {
-    INVENTORY_INACTIVE_READ_ROLES, INVENTORY_WRITE_ROLES,INVENTORY_ADJUST_ROLES,
+    INVENTORY_INACTIVE_READ_ROLES, INVENTORY_WRITE_ROLES, INVENTORY_ADJUST_ROLES,
     INVENTORY_HARD_DELETE_ROLES, useGetInventoryList, useGetInactiveInventoryList,
     useGetInventoryById, useCreateInventory, useUpdateInventory,
     useAdjustInventoryStock,
     useSoftDeleteInventory,
     useRestoreInventory,
     useHardDeleteInventory,
+    useUpdateInventoryImage,
+    useRemoveInventoryImage,
 } from '../../api_service/inventory_api/inventoryApi';
 import type { InventoryItem, InventoryPayload } from '../../api_service/inventory_api/inventoryApi';
 import useDebounce from '../../hooks/useDebounce';
@@ -30,6 +32,8 @@ import { useGetVendorDropdown } from '../../api_service/vendor_api/vendorApi';
 import { SearchSelect } from '../../components/ui/SearchSelect';
 import InfoTooltip from '../../components/ui/InfoTooltip';
 import { Dropdown } from '../../components/ui/Dropdown';
+import { InventoryImagePicker } from './InventoryImagePicker';
+import { NO_IMAGE } from '../../constants/constants';
 
 
 
@@ -192,6 +196,8 @@ const InventoryForm = ({
         minLevel: initial ? String(initial.minLevel ?? 0) : '0',
         vendorId: initial ? getVendor(initial).id : '',
     });
+
+
     const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
 
     const set = (key: keyof FormState) => (value: string) => {
@@ -245,13 +251,13 @@ const InventoryForm = ({
                         onChange={(e) => set('category')(e.target.value)}
                         placeholder="Type or pick a category"
                     />
-                    <datalist id="inventory-categories">
+                    {/* <datalist id="inventory-categories">
                         {categories.map((c) => (
                             <option key={c} value={c} />
                         ))}
-                    </datalist>
+                    </datalist> */}
                 </Field>
-               
+
                 <Field error={errors.unit}>
                     <SearchSelect
                         label="Unit *"
@@ -277,7 +283,7 @@ const InventoryForm = ({
                             position="left"
                             title="In stock"
                             description="The quantity you currently have on hand. To record a purchase, wastage or recount later, use Adjust stock so the change is logged with a reason."
-                              popupClassName="!top-full !bottom-auto !left-0 !right-auto mt-2 w-64 translate-x-0! translate-y-0!"
+                            popupClassName="!top-full !bottom-auto !left-0 !right-auto mt-2 w-64 translate-x-0! translate-y-0!"
                         />
                     }
                 >
@@ -418,12 +424,21 @@ const ViewPanel = ({ id }: { id: string }) => {
     if (error || !item) return <PanelMessage error text={(error as Error)?.message || 'Item not found'} />;
     return (
         <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between gap-2">
+            {/* <div className="flex items-center justify-between gap-2">
                 <div>
                     <p className="text-sm text-muted">{item.inventoryNo as string}</p>
                     <h3 className="text-xl font-semibold text-heading">{item.material}</h3>
                 </div>
                 <StockBadge item={item} />
+            </div> */}
+
+            <div className="flex items-start gap-4">
+                <InventoryImagePicker readOnly imageUrl={item.image?.url} />
+                <div className="min-w-0 flex-1">
+                    <p className="text-sm text-muted">{item.inventoryNo as string}</p>
+                    <h3 className="truncate text-xl font-semibold text-heading">{item.material}</h3>
+                    <div className="mt-2"><StockBadge item={item} /></div>
+                </div>
             </div>
             <div>
                 <Detail label="Category" value={item.category} />
@@ -455,20 +470,62 @@ const EditPanel = ({
     onSubmit: (payload: InventoryPayload) => Promise<void>;
     onCancel: () => void;
 }) => {
+    const { mutateAsync: uploadImage, isPending: uploadingImage } = useUpdateInventoryImage();
+    const { mutateAsync: removeImage, isPending: removingImage } = useRemoveInventoryImage();
+
+    const handleImageSelect = async (image: File) => {
+        try {
+            await uploadImage({ inventoryId: id, image });
+            toast.success('Image updated');
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : 'Failed to update image');
+        }
+    };
+
+    const handleImageRemove = async () => {
+        try {
+            await removeImage(id);
+            toast.success('Image removed');
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : 'Failed to remove image');
+        }
+    };
+
     const { data: item, isLoading, error } = useGetInventoryById(id);
     if (isLoading) return <PanelMessage text="Loading item..." />;
     if (error || !item) return <PanelMessage error text={(error as Error)?.message || 'Item not found'} />;
+    // return (
+    //     <InventoryForm
+    //         key={item._id}
+    //         initial={item}
+    //         isEdit
+    //         isPending={isPending}
+    //         categories={categories}
+    //         vendorOptions={vendorOptions}
+    //         onSubmit={onSubmit}
+    //         onCancel={onCancel}
+    //     />
+    // );
+
     return (
-        <InventoryForm
-            key={item._id}
-            initial={item}
-            isEdit
-            isPending={isPending}
-            categories={categories}
-            vendorOptions={vendorOptions}
-            onSubmit={onSubmit}
-            onCancel={onCancel}
-        />
+        <div className="flex flex-col gap-5">
+            <InventoryImagePicker
+                imageUrl={item.image?.url}
+                isBusy={uploadingImage || removingImage}
+                onSelect={handleImageSelect}
+                onRemove={handleImageRemove}
+            />
+            <InventoryForm
+                key={item._id}
+                initial={item}
+                isEdit
+                isPending={isPending}
+                categories={categories}
+                vendorOptions={vendorOptions}
+                onSubmit={onSubmit}
+                onCancel={onCancel}
+            />
+        </div>
     );
 };
 
@@ -484,39 +541,6 @@ interface RowActions {
     onRestore: (item: InventoryItem) => void;
     onHardDelete: (item: InventoryItem) => void;
 }
-
-// const ActionButtons = ({ item, inactive, a }: { item: InventoryItem; inactive: boolean; a: RowActions }) => (
-//   <div className="flex items-center gap-1.5">
-//     <IconAction label="View details" onClick={() => a.onView(item)}>
-//       <Eye size={18} />
-//     </IconAction>
-//     {!inactive && a.canWrite && (
-//       <IconAction label="Edit item" onClick={() => a.onEdit(item)}>
-//         <Pencil size={18} />
-//       </IconAction>
-//     )}
-//     {!inactive && a.canAdjust && (
-//       <IconAction label="Adjust stock" onClick={() => a.onAdjust(item)}>
-//         <PackagePlus size={18} />
-//       </IconAction>
-//     )}
-//     {!inactive && a.canWrite && (
-//       <IconAction danger label="Deactivate item" onClick={() => a.onDeactivate(item)}>
-//         <Power size={18} />
-//       </IconAction>
-//     )}
-//     {inactive && a.canWrite && (
-//       <IconAction label="Restore item" onClick={() => a.onRestore(item)}>
-//         <RotateCcw size={18} />
-//       </IconAction>
-//     )}
-//     {inactive && a.canHardDelete && (
-//       <IconAction danger label="Delete permanently" onClick={() => a.onHardDelete(item)}>
-//         <Trash2 size={18} />
-//       </IconAction>
-//     )}
-//   </div>
-// );
 
 
 
@@ -599,7 +623,8 @@ const ListContent = ({
             >
                 <THead className="text-sm">
                     <tr>
-                        <Th>S.No</Th>  
+                        <Th>S.No</Th>
+                        <Th>Image</Th>
                         <Th>Material</Th>
                         <Th>Category</Th>
                         <Th className="text-right">In stock</Th>
@@ -623,8 +648,23 @@ const ListContent = ({
                     ) : (
                         items.map((item, idx) => (
                             <Tr key={item._id} onClick={() => actions.onView(item)} ariaLabel={`View item: ${item.material}`}>
-                                <Td className="text-base text-center">{idx + 1}</Td>  
+                                <Td className="text-base text-center">{idx + 1}</Td>
 
+                                <Td className="text-base">
+                                    {item.image ? (
+                                        <img
+                                            src={item?.image?.url}
+                                            alt={item?.material}
+                                            className="h-12 w-12 rounded-lg object-cover border border-border"
+                                        />
+                                    ) : (
+                                        <img
+                                            src={NO_IMAGE}
+                                            alt={item?.material}
+                                            className="h-12 w-12 rounded-lg object-cover border border-border"
+                                        />
+                                    )}
+                                </Td>
                                 <Td className="text-base">
                                     <p className="font-medium text-heading">{item.material}</p>
                                     <p className="text-sm text-muted">{item.inventoryNo as string}</p>
@@ -713,6 +753,8 @@ const InventoryMain = () => {
     const [showFilters, setShowFilters] = useState(false);
     const [panel, setPanel] = useState<Panel>(null);
     const [confirm, setConfirm] = useState<Confirm>(null);
+    const [newImage, setNewImage] = useState<File | null>(null);
+
 
     const debouncedSearch = useDebounce(search, 400);
 
@@ -736,12 +778,18 @@ const InventoryMain = () => {
     const { mutateAsync: restoreAsync } = useRestoreInventory();
     const { mutateAsync: hardDeleteAsync, isPending: hardDeleting } = useHardDeleteInventory();
 
-    const closePanel = () => setPanel(null);
+    // const closePanel = () => setPanel(null);
+
+    const closePanel = () => {
+        setPanel(null);
+        setNewImage(null);
+    };
+
     const errMsg = (e: unknown, fallback: string) => (e instanceof Error && e.message ? e.message : fallback);
 
     const handleCreate = async (payload: InventoryPayload) => {
         try {
-            await createAsync(payload);
+            await createAsync({ ...payload, image: newImage });
             toast.success('Inventory item created');
             closePanel();
         } catch (e) {
@@ -933,14 +981,17 @@ const InventoryMain = () => {
             {/* Side panel */}
             <SideModal isOpen={!!panel} onClose={closePanel} title={panelTitle}>
                 {panel?.type === 'create' && (
-                    <InventoryForm
-                        isEdit={false}
-                        isPending={creating}
-                        categories={categories}
-                        vendorOptions={vendorOptions}
-                        onSubmit={handleCreate}
-                        onCancel={closePanel}
-                    />
+                    <div className="flex flex-col gap-5">
+                        <InventoryImagePicker file={newImage} onSelect={setNewImage} onRemove={() => setNewImage(null)} />
+                        <InventoryForm
+                            isEdit={false}
+                            isPending={creating}
+                            categories={categories}
+                            vendorOptions={vendorOptions}
+                            onSubmit={handleCreate}
+                            onCancel={closePanel}
+                        />
+                    </div>
                 )}
                 {panel?.type === 'edit' && (
                     <EditPanel

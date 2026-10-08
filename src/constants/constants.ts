@@ -3,7 +3,7 @@ import noimg from '../assets/no image.jpeg'
 
 
 import { type UserRole } from "../features/slices/authSlice";
-import { BadgePercent, Boxes, Building2, ChefHat, ClipboardList, CookingPot, CreditCard, FolderKanban, LayoutDashboard, LayoutGrid, LifeBuoy, PackageMinus, Printer, ReceiptText, ShoppingCart, Star, Tags, Users, type LucideProps } from 'lucide-react';
+import { BadgePercent, Boxes, Building2, ChefHat, ClipboardList, CookingPot, CreditCard, FolderKanban, LayoutDashboard, LayoutGrid, LifeBuoy, PackageMinus, Printer, ReceiptIndianRupee, ReceiptText, ShoppingCart, Star, Tags, Users, type LucideProps } from 'lucide-react';
 import { type ComponentType } from 'react';
 
 
@@ -65,6 +65,7 @@ export const baseManagementMenu: MenuItem[] = [
     { name: 'Payments', path: '/layout/payment', icon: CreditCard },
     { name: 'Kitchen', path: '/layout/kitchen', icon: ChefHat },
     { name: 'Order', path: '/layout/order', icon: ClipboardList },
+    { name: 'My Orders', path: '/layout/myorders', icon: ReceiptIndianRupee },
     { name: 'Tables', path: '/layout/tables', icon: LayoutGrid },
     { name: 'Inventory', path: '/layout/inventory', icon: Boxes },
     { name: 'Waste Adjustment', path: '/layout/waste-adjustment', icon: PackageMinus },

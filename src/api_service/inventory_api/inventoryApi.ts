@@ -17,6 +17,7 @@ export interface InventoryPayload {
   material: string;
   category: string;
   unit: string;
+  image?: File | null;
   rate: number;
   inStock?: number;
   minLevel?: number;
@@ -29,6 +30,13 @@ export interface UpdateInventoryPayload {
   data: Partial<InventoryPayload>;
 }
 
+
+export interface UpdateInventoryImagePayload {
+  inventoryId: string;
+  image: File;
+}
+
+
 export interface StockAdjustmentPayload {
   inventoryId: string;
   action: 'add' | 'remove';
@@ -36,9 +44,25 @@ export interface StockAdjustmentPayload {
   reason?: string;
 }
 
-export interface InventoryItem extends InventoryPayload {
+export interface InventoryItem {
   _id: string;
-  organizationId: string;
+  image?: {
+  url: string;
+  originalName?: string;
+  updatedAt?: string;
+} | null;
+
+inventoryNo:string
+  material: string;
+  category: string;
+  unit: string;
+  rate: number;
+  inStock?: number;
+  minLevel?: number;
+  vendorId?: string;
+  value:number
+  isActive:boolean
+
   createdBy: string;
   updatedBy?: string;
   isDeleted: boolean;
@@ -186,9 +210,34 @@ export const useCreateInventory = () => {
         checkPermission(currentRole, INVENTORY_WRITE_ROLES);
         if (!organizationId) throw new Error('Organization ID is missing');
 
+        const formData = new FormData();
+
+        formData.append('material', payload.material);
+        formData.append('category', payload.category);
+        formData.append('unit', payload.unit);
+        formData.append('rate', String(payload.rate));
+
+        if (payload.inStock !== undefined) {
+          formData.append('inStock', String(payload.inStock));
+        }
+
+        if (payload.minLevel !== undefined) {
+          formData.append('minLevel', String(payload.minLevel));
+        }
+
+        if (payload.vendorId) {
+          formData.append('vendorId', payload.vendorId);
+        }
+
+        if (payload.image) {
+          formData.append('file', payload.image);
+        }
+
         const { data } = await Api.post<BaseApiResponse<InventoryItem>>(
           `${BASE_INVENTORY_URL}/${organizationId}`,
-          payload
+          formData,
+          { headers: { 'Content-Type': 'multipart/form-data' } }
+
         );
 
         if (data.ok) return data;
@@ -204,6 +253,81 @@ export const useCreateInventory = () => {
     },
   });
 };
+
+
+
+// ── Update Menu Category Image ───────────────────────────────────────────────
+// Route: PATCH /api/menu-category/v1/:organizationId/:inventoryId/image
+// Allowed: owner, admin, cto, staff
+export const useUpdateInventoryImage = () => {
+  const { currentRole, organizationId } = useAuthData();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ inventoryId, image }: UpdateInventoryImagePayload) => {
+      try {
+        checkPermission(currentRole, INVENTORY_WRITE_ROLES);
+        if (!organizationId) throw new Error('Organization ID is missing');
+        if (!inventoryId) throw new Error('inventory ID is missing');
+        if (!image) throw new Error('An image file is required');
+
+        const formData = new FormData();
+        formData.append('file', image);
+
+        const { data } = await Api.put<BaseApiResponse<any>>(
+          `${BASE_INVENTORY_URL}/${organizationId}/${inventoryId}/image`,
+          formData,
+          { headers: { 'Content-Type': 'multipart/form-data' } }
+        );
+
+        if (data.ok) return data;
+        throw new Error(data.message || 'Failed to update inventory  image');
+      } catch (error: any) {
+        const errorMessage = error.response?.data?.message || error.message || 'An unexpected error occurred';
+        throw new Error(errorMessage, { cause: error });
+      }
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'detail', organizationId, variables.inventoryId] });
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'list', organizationId] });
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'dropdown', organizationId] });
+    },
+  });
+};
+
+// ── Remove Menu Category Image ───────────────────────────────────────────────
+// Route: DELETE /api/menu-category/v1/:organizationId/:inventoryId/image
+// Allowed: owner, admin, cto, staff
+export const useRemoveInventoryImage = () => {
+  const { currentRole, organizationId } = useAuthData();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (inventoryId: string) => {
+      try {
+        checkPermission(currentRole, INVENTORY_WRITE_ROLES);
+        if (!organizationId) throw new Error('Organization ID is missing');
+        if (!inventoryId) throw new Error('inventoryId is missing');
+
+        const { data } = await Api.delete<BaseApiResponse<any>>(
+          `${BASE_INVENTORY_URL}/${organizationId}/${inventoryId}/image`
+        );
+
+        if (data.ok) return data;
+        throw new Error(data.message || 'Failed to remove inventory  image');
+      } catch (error: any) {
+        const errorMessage = error.response?.data?.message || error.message || 'An unexpected error occurred';
+        throw new Error(errorMessage, { cause: error });
+      }
+    },
+    onSuccess: (_data, inventoryId) => {
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'detail', organizationId, inventoryId] });
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'list', organizationId] });
+      queryClient.invalidateQueries({ queryKey: ['inventory', 'dropdown', organizationId] });
+    },
+  });
+};
+
 
 // ── 6. Update Inventory Item ─────────────────────────────────────────────────
 // Route: PUT /api/inventory/v1/:organizationId/:inventoryId

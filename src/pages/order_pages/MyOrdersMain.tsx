@@ -446,7 +446,7 @@ const MyOrdersMain = () => {
             {!isCustomReady && <p className="text-sm text-muted">Select both from and to dates to see orders.</p>}
 
             {error && (
-                <div className="flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                <div className="flex items-center justify-between rounded-xl border border-danger  px-4 py-3 text-sm text-danger">
                     <span>{(error as Error).message}</span>
                     <Button size="sm" variant="outline" onClick={() => refetch()}>
                         Retry
