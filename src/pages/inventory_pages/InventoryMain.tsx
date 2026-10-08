@@ -15,15 +15,9 @@ import { Label } from '../../components/ui/Label';
 // import { Dropdown } from '../../components/ui/Dropdown';
 import { useAuthData } from '../../hooks/useAuthData';
 import {
-    INVENTORY_INACTIVE_READ_ROLES,
-    INVENTORY_WRITE_ROLES,
-    INVENTORY_ADJUST_ROLES,
-    INVENTORY_HARD_DELETE_ROLES,
-    useGetInventoryList,
-    useGetInactiveInventoryList,
-    useGetInventoryById,
-    useCreateInventory,
-    useUpdateInventory,
+    INVENTORY_INACTIVE_READ_ROLES, INVENTORY_WRITE_ROLES,INVENTORY_ADJUST_ROLES,
+    INVENTORY_HARD_DELETE_ROLES, useGetInventoryList, useGetInactiveInventoryList,
+    useGetInventoryById, useCreateInventory, useUpdateInventory,
     useAdjustInventoryStock,
     useSoftDeleteInventory,
     useRestoreInventory,

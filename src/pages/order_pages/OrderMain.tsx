@@ -1229,7 +1229,7 @@ const OrderMain = () => {
 
                 {selectedOrderId && isActiveOrderOpen && (
                     <>
-                        <Button
+                       {hasPendingDraft && <Button
                             fullWidth
                             leftIcon={<ChefHat size={18} />}
                             isLoading={isAddingItems}
@@ -1239,7 +1239,7 @@ const OrderMain = () => {
                         >
                             Send {hasPendingDraft ? `${draftQuantity} new ` : 'new '}
                             {draftQuantity === 1 ? 'item' : 'items'} to kitchen
-                        </Button>
+                        </Button>}
                         <div className="grid grid-cols-2 gap-2">
                             <Button
                                 variant="outline"
@@ -1264,7 +1264,7 @@ const OrderMain = () => {
                 )}
 
                 {selectedOrderId && activeOrder && !isActiveOrderOpen && (
-                    <p className="rounded-lg bg-primary-soft px-3 py-2 text-sm text-primary-text">
+                    <p className="rounded-lg bg-primary px-3 py-2 text-sm text-primary-text">
                         This order is {activeOrder.orderStatus}
                         {activeOrder.paymentStatus === 'paid' ? ' and paid.' : '.'} Start a new order to keep selling.
                     </p>

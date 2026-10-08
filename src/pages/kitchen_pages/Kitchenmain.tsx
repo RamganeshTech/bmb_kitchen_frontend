@@ -14,6 +14,8 @@ import {
     type OrderType,
 } from '../../api_service/order_api/orderApi';
 import { useGetOutletDropdown } from '../../api_service/outlet_api/outletApi';
+import useDebounce from '../../hooks/useDebounce';
+import { Input } from '../../components/ui/Input';
 
 // ── Constants ───────────────────────────────────────────────────────────────
 const PAGE_SIZE = 24;
@@ -43,6 +45,14 @@ const KITCHEN_STATUS_BADGE: Record<KitchenItemStatus, string> = {
     cancelled: 'bg-danger',
 };
 
+const DATE_RANGE_OPTIONS = [
+    { label: 'Today', value: 'today' },
+    { label: 'This week', value: 'week' },
+    { label: 'This month', value: 'month' },
+    { label: 'This year', value: 'year' },
+    { label: 'Custom', value: 'custom' },
+] as const;
+
 const NEXT_KITCHEN_STATUS: Partial<Record<KitchenItemStatus, { next: KitchenItemStatus; label: string }>> = {
     in_queue: { next: 'preparing', label: 'Start preparing' },
     preparing: { next: 'ready', label: 'Mark ready' },
@@ -64,7 +74,7 @@ const ORDER_TYPE_LABELS: Record<string, string> = {
 };
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
-const toArray = (data: any, ...keys: string[]): Record<string, any>[] => {
+export const toArray = (data: any, ...keys: string[]): Record<string, any>[] => {
     if (Array.isArray(data)) return data;
     for (const key of keys) {
         if (Array.isArray(data?.[key])) return data[key];
@@ -107,11 +117,11 @@ const KitchenItemCard = ({
     const isLate = (item.status === 'in_queue' || item.status === 'preparing') && elapsedMinutes >= LATE_AFTER_MINUTES;
 
     return (
-        <article className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4">
+        <article className="flex flex-col gap-3 rounded-xl border-2 border-border bg-surface p-4">
             <header className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                     <p className="text-sm font-semibold text-heading">{item.orderNo}</p>
-                    <p className="truncate text-sm text-muted">
+                    <p className="truncate text-sm font-medium text-muted">
                         {item.tableId ? getTableLabel(item.table) : 'No table'}
                     </p>
                 </div>
@@ -121,7 +131,7 @@ const KitchenItemCard = ({
             </header>
 
             <div className="flex items-start gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-lg font-semibold text-primary-text">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-lg font-semibold text-primary-text">
                     {item.quantity}
                 </span>
                 <h3 className={`text-base font-semibold text-heading ${item.status === 'cancelled' ? 'line-through opacity-60' : ''}`}>
@@ -161,6 +171,7 @@ const KitchenItemCard = ({
     );
 };
 
+
 // ── Main screen ─────────────────────────────────────────────────────────────
 const KitchenMain = () => {
     // Outlet
@@ -177,17 +188,32 @@ const KitchenMain = () => {
     const [orderTypeFilter, setOrderTypeFilter] = useState<OrderType | 'all'>('all');
     const [page, setPage] = useState(1);
 
+    const [dateRange, setDateRange] = useState<'today' | 'week' | 'month' | 'year' | 'custom'>('today');
+    const [fromDate, setFromDate] = useState('');   // yyyy-mm-dd
+    const [toDate, setToDate] = useState('');
+    const [searchText, setSearchText] = useState('');
+    const debouncedSearch = useDebounce(searchText, 400);
+
+    const isCustomReady = dateRange !== 'custom' || (!!fromDate && !!toDate);
+
     // Served / cancelled items belong to orders that may already be closed, so look at today's orders for those tabs
-    const scope = activeStatus === 'served' || activeStatus === 'cancelled' ? 'today' : 'running';
+    // const scope = activeStatus === 'served' || activeStatus === 'cancelled' ? 'today' : 'running';
 
     const { data, isLoading, isFetching, error, refetch } = useGetKitchenItems({
         outletId: outletId || undefined,
         status: activeStatus,
         orderType: orderTypeFilter === 'all' ? undefined : orderTypeFilter,
-        scope,
+        range: dateRange,
+        // from: dateRange === 'custom' && fromDate ? new Date(`${fromDate}T00:00:00`).toISOString() : undefined,
+        // to: dateRange === 'custom' && toDate ? new Date(`${toDate}T23:59:59.999`).toISOString() : undefined,
+        from: dateRange === 'custom' && fromDate ? fromDate : undefined,   // e.g. "2026-10-01"
+        to: dateRange === 'custom' && toDate ? toDate : undefined,         // e.g. "2026-10-08"
+        search: debouncedSearch || undefined,
         page,
         limit: PAGE_SIZE,
-    });
+    },
+        { enabled: isCustomReady },
+    );
 
     const kitchenItems = data?.items ?? [];
     const totalPages = data?.totalPages ?? 1;
@@ -260,8 +286,7 @@ const KitchenMain = () => {
                     </Button>
                 </div>
             </div>
-
-            {/* Status tabs */}
+            {/* 
             <div className="flex gap-2 overflow-x-auto pb-1">
                 {KITCHEN_TABS.map((tab) => (
                     <Button
@@ -274,7 +299,6 @@ const KitchenMain = () => {
                 ))}
             </div>
 
-            {/* Order type filter */}
             <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm text-muted">Order type</span>
                 {ORDER_TYPE_FILTERS.map((option) => (
@@ -287,6 +311,126 @@ const KitchenMain = () => {
                         {option.label}
                     </Button>
                 ))}
+            </div>
+
+
+            <div className="flex flex-wrap items-end gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm text-muted">Date</span>
+                    {DATE_RANGE_OPTIONS.map((option) => (
+                        <Button
+                            key={option.value}
+                            size="sm"
+                            variant={dateRange === option.value ? 'primary' : 'ghost'}
+                            onClick={() => { setDateRange(option.value); setPage(1); }}
+                        >
+                            {option.label}
+                        </Button>
+                    ))}
+                </div>
+
+                {dateRange === 'custom' && (
+                    <>
+                        <Input type="date" label="From" value={fromDate} max={toDate || undefined}
+                            onChange={(e) => { setFromDate(e.target.value); setPage(1); }} />
+                        <Input type="date" label="To" value={toDate} min={fromDate || undefined}
+                            onChange={(e) => { setToDate(e.target.value); setPage(1); }} />
+                    </>
+                )}
+
+                <div className="w-full sm:w-64">
+                    <Input
+                        label="Order no"
+                        placeholder="Search order no..."
+                        value={searchText}
+                        onChange={(e) => { setSearchText(e.target.value); setPage(1); }}
+                    />
+                </div>
+            </div> */}
+
+
+            {/* Filters: status + order type (left), date + search (right) */}
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                {/* Left: status tabs + order type */}
+                <div className="flex min-w-0 flex-col gap-2">
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                        {KITCHEN_TABS.map((tab) => (
+                            <Button
+                                key={tab.status}
+                                variant={activeStatus === tab.status ? 'primary' : 'outline'}
+                                onClick={() => handleChangeStatusTab(tab.status)}
+                            >
+                                {tab.label} ({data?.counts[tab.status] ?? 0})
+                            </Button>
+                        ))}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm text-muted">Order type</span>
+                        {ORDER_TYPE_FILTERS.map((option) => (
+                            <Button
+                                key={option.value}
+                                size="sm"
+                                variant={orderTypeFilter === option.value ? 'primary' : 'ghost'}
+                                onClick={() => handleChangeOrderType(option.value)}
+                            >
+                                {option.label}
+                            </Button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Right: date + search */}
+                <div className="flex flex-wrap items-end gap-2 lg:justify-end">
+                    <div className="w-46">
+                        <SearchSelect
+                            label="Date"
+                            options={DATE_RANGE_OPTIONS as unknown as { label: string; value: string }[]}
+                            value={dateRange}
+                            placeholder="Date"
+                            onChange={(option) => {
+                                setDateRange(option.value as typeof dateRange);
+                                setPage(1);
+                            }}
+                            onClear={() => {
+                                setDateRange('today');
+                                setPage(1);
+                            }}
+                        />
+                    </div>
+
+                    {dateRange === 'custom' && (
+                        <>
+                            <div className="w-36">
+                                <Input
+                                    type="date"
+                                    label="From"
+                                    value={fromDate}
+                                    max={toDate || undefined}
+                                    onChange={(e) => { setFromDate(e.target.value); setPage(1); }}
+                                />
+                            </div>
+                            <div className="w-36">
+                                <Input
+                                    type="date"
+                                    label="To"
+                                    value={toDate}
+                                    min={fromDate || undefined}
+                                    onChange={(e) => { setToDate(e.target.value); setPage(1); }}
+                                />
+                            </div>
+                        </>
+                    )}
+
+                    <div className="w-44">
+                        <Input
+                            label="Order no"
+                            placeholder="Search..."
+                            value={searchText}
+                            onChange={(e) => { setSearchText(e.target.value); setPage(1); }}
+                        />
+                    </div>
+                </div>
             </div>
 
             {/* Items */}

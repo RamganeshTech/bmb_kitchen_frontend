@@ -16,6 +16,7 @@ import KitchenMain from './pages/kitchen_pages/Kitchenmain'
 import RoleMain from './pages/role_pages/RoleMain'
 import UserMain from './pages/user_pages/UserMain'
 import UserSingle from './pages/user_pages/UserSingle'
+import MyOrdersMain from './pages/order_pages/MyOrdersMain'
 const ResetPassword = lazy(() => import('./pages/login_pages/ResetPassword'))
 const ForgotPassword = lazy(() => import('./pages/login_pages/ForgotPassword'))
 const RegisterOrganization = lazy(() => import('./pages/organization_pages/RegisterOrganization'))
@@ -102,6 +103,7 @@ const App = () => {
               <Route path="profile" element={<UserProfile />} />
               <Route path="order" element={<OrderMain />} />
               <Route path="role" element={<RoleMain />} />
+              <Route path="myorders" element={<MyOrdersMain />} />
 
               <Route path="users" element={<UserMain />} >
                 <Route path="single/:userId" element={<UserSingle />} />

@@ -46,7 +46,7 @@ export interface UpdateItemKitchenStatusPayload {
 export interface ProcessOrderCheckoutPayload {
     orderId: string;
     paymentMethod: string;
-    offerId?: string 
+    offerId?: string
     loyaltyPointsRedeemed?: number;
     manualDiscount?: number;
 }
@@ -90,6 +90,131 @@ export const useGetActiveOrders = (outletId?: string) => {
         },
         enabled: !!organizationId && !!currentRole,
     });
+};
+
+
+
+export interface MyOrdersFilters {
+  outletId?: string;
+  scope?: 'today' | 'week' | 'month' | 'year' | 'custom' | 'all';
+  from?: string;   // YYYY-MM-DD
+  to?: string;
+  orderType?: OrderType;
+  paymentMethod?: 'cash' | 'card' | 'upi' | 'split';
+  tableId?: string;
+  customerId?: string;
+  search?: string;
+  minAmount?: number;
+  maxAmount?: number;
+  hasDiscount?: boolean;
+  sortBy?: 'paidAt' | 'grandTotal';
+  sortOrder?: 'asc' | 'desc';
+  page?: number;
+  limit?: number;
+}
+
+
+// export interface MyOrdersResponse { orders: OrderDocument[]; summary: any; total; page; limit; totalPages }
+
+
+// Route: GET /api/orders/v1/:organizationId/my-orders
+// Allowed: owner, admin, cto, staff
+// export const useGetMyOrders = (filters: MyOrdersFilters = {}, options: { enabled?: boolean } = {}) => {
+//   const { currentRole, organizationId } = useAuthData();
+//   const { enabled = true } = options;
+
+//   return useQuery({
+//     queryKey: ['orders', 'my-orders', organizationId, filters],
+//     queryFn: async (): Promise<any> => {
+//       try {
+//         checkPermission(currentRole, ORDER_READ_ROLES);
+//         if (!organizationId) throw new Error('Organization ID is missing');
+
+//         const { data } = await Api.get<BaseApiResponse<any>>(
+//           `${BASE_ORDERS_URL}/${organizationId}/my-orders`,
+//           {
+//             params: {
+//               outletId: filters.outletId || undefined,
+//               scope: filters.scope || undefined,
+//               from: filters.scope === 'custom' ? filters.from : undefined,
+//               to: filters.scope === 'custom' ? filters.to : undefined,
+//               orderType: filters.orderType || undefined,
+//               paymentMethod: filters.paymentMethod || undefined,
+//               tableId: filters.tableId || undefined,
+//               customerId: filters.customerId || undefined,
+//               search: filters.search || undefined,
+//               minAmount: filters.minAmount,
+//               maxAmount: filters.maxAmount,
+//               hasDiscount: filters.hasDiscount,
+//               sortBy: filters.sortBy || undefined,
+//               sortOrder: filters.sortOrder || undefined,
+//               page: filters.page || undefined,
+//               limit: filters.limit || undefined,
+//             },
+//           }
+//         );
+
+//         if (data.ok && data.data) return data.data;
+//         throw new Error(data.message || 'Failed to fetch your orders');
+//       } catch (error: any) {
+//         const errorMessage = error.response?.data?.message || error.message || 'An unexpected error occurred';
+//         throw new Error(errorMessage, { cause: error });
+//       }
+//     },
+//     enabled: enabled && !!organizationId && !!currentRole,
+//     retry: false,
+//   });
+// };
+
+
+
+export const useGetMyOrders = (filters: Omit<MyOrdersFilters, 'page'> = {}, options: { enabled?: boolean } = {}) => {
+  const { currentRole, organizationId } = useAuthData();
+  const { enabled = true } = options;
+
+  return useInfiniteQuery({
+    queryKey: ['orders', 'my-orders', organizationId, filters],
+    initialPageParam: 1,
+    queryFn: async ({ pageParam }): Promise<any> => {
+      try {
+        checkPermission(currentRole, ORDER_READ_ROLES);
+        if (!organizationId) throw new Error('Organization ID is missing');
+
+        const { data } = await Api.get<BaseApiResponse<any>>(
+          `${BASE_ORDERS_URL}/${organizationId}/my-orders`,
+          {
+            params: {
+              outletId: filters.outletId || undefined,
+              scope: filters.scope || undefined,
+              from: filters.scope === 'custom' ? filters.from : undefined,
+              to: filters.scope === 'custom' ? filters.to : undefined,
+              orderType: filters.orderType || undefined,
+              paymentMethod: filters.paymentMethod || undefined,
+              tableId: filters.tableId || undefined,
+              customerId: filters.customerId || undefined,
+              search: filters.search || undefined,
+              minAmount: filters.minAmount,
+              maxAmount: filters.maxAmount,
+              hasDiscount: filters.hasDiscount,
+              sortBy: filters.sortBy || undefined,
+              sortOrder: filters.sortOrder || undefined,
+              page: pageParam,
+              limit: filters.limit || undefined,
+            },
+          }
+        );
+
+        if (data.ok && data.data) return data.data;
+        throw new Error(data.message || 'Failed to fetch your orders');
+      } catch (error: any) {
+        const errorMessage = error.response?.data?.message || error.message || 'An unexpected error occurred';
+        throw new Error(errorMessage, { cause: error });
+      }
+    },
+    getNextPageParam: (lastPage) => (lastPage.page < lastPage.totalPages ? lastPage.page + 1 : undefined),
+    enabled: enabled && !!organizationId && !!currentRole,
+    retry: false,
+  });
 };
 
 // ── 2. Get Order by ID ──────────────────────────────────────────────────────
@@ -527,6 +652,10 @@ export interface KitchenItemFilters {
     scope?: KitchenScope;
     page?: number;
     limit?: number;
+    range?: 'today' | 'week' | 'month' | 'year' | 'custom';
+    from?: string;   // ISO
+    to?: string;     // ISO
+    search?: string;
 }
 
 export interface KitchenItem {
@@ -562,8 +691,12 @@ export interface KitchenItemsResponse {
 // Allowed: owner, admin, cto, staff
 export const useGetKitchenItems = (
     filters: KitchenItemFilters = {},
+    options: { enabled?: boolean } = {},
+
 ) => {
     const { currentRole, organizationId } = useAuthData();
+    const { enabled = true } = options;
+
     // const { pollIntervalMs = 15000 } = options;
 
     // Normalise so the same filters always produce the same query key
@@ -578,8 +711,12 @@ export const useGetKitchenItems = (
             statusParam ?? '',
             filters.orderType ?? '',
             filters.scope ?? 'running',
-            filters.page ?? 1,
+            filters.range ?? '',
+            filters.from ?? '',
+            filters.to ?? '',
+            filters.search ?? '',
             filters.limit ?? 50,
+            filters.page ?? 1,
         ],
         queryFn: async (): Promise<KitchenItemsResponse> => {
             try {
@@ -596,6 +733,10 @@ export const useGetKitchenItems = (
                             scope: filters.scope || undefined,
                             page: filters.page || undefined,
                             limit: filters.limit || undefined,
+                            range: filters.range || undefined,
+                            from: filters.from || undefined,
+                            to: filters.to || undefined,
+                            search: filters.search || undefined,
                         },
                     }
                 );
@@ -609,7 +750,7 @@ export const useGetKitchenItems = (
                 throw new Error(errorMessage, { cause: error });
             }
         },
-        enabled: !!organizationId && !!currentRole,
+        enabled: enabled && !!organizationId && !!currentRole,
         retry: false
         // placeholderData: keepPreviousData, // no flicker when switching tabs or pages
         // refetchInterval: pollIntervalMs,   // kitchen screens should refresh themselves
